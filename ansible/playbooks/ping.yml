@@ -1,6 +1,6 @@
 ---
 - name: Validate Ubuntu baseline connectivity
-  hosts: "{{ target_host | default('ubuntu') }}"
+  hosts: all
   gather_facts: false
   tasks:
     - name: Verify Ansible control path with ping module

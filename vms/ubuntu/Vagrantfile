@@ -17,33 +17,26 @@ load_env(File.expand_path("../../.env", __dir__), env)
 load_env(File.expand_path(".env", __dir__), env)
 
 vm_name = env.fetch("VM_NAME", "ubuntu")
-vm_ip = env.fetch("VM_IP", "192.168.1.190")
 vm_cpus = env.fetch("VM_CPUS", "2").to_i
 vm_memory = env.fetch("VM_MEMORY", "2048")
 vm_box = env.fetch("UBUNTU_BOX", "bento/ubuntu-22.04")
-hyperv_switch = env.fetch("HYPERV_SWITCH_NAME", "External Virtual Switch")
 ansible_user = env.fetch("ANSIBLE_SSH_USER", "vagrant")
 ansible_key = env.fetch("ANSIBLE_PRIVATE_KEY_PATH", "~/.vagrant.d/insecure_private_key")
 
 Vagrant.configure("2") do |config|
   config.vm.box = vm_box
   config.vm.hostname = vm_name
-  config.vm.network "private_network", ip: vm_ip
 
   config.vm.provider "hyperv" do |h|
     h.vmname = vm_name
     h.cpus = vm_cpus
     h.memory = vm_memory
     h.enable_virtualization_extensions = true
-    h.virtual_switch = hyperv_switch
   end
 
   config.vm.provision "ansible" do |ansible|
     ansible.playbook = "../../ansible/playbooks/ping.yml"
-    ansible.inventory_path = "../../ansible/inventory/hosts.yml"
-    ansible.limit = vm_name
     ansible.extra_vars = {
-      target_host: vm_name,
       ansible_user: ansible_user,
       ansible_ssh_private_key_file: ansible_key
     }
