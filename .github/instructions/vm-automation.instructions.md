@@ -1,12 +1,7 @@
 ---
 description: "Use when working on VM lifecycle automation with Vagrant, Hyper-V, Ansible, PowerShell, Bash, WinRM, SSH, static lab networking, and provisioning workflows."
 name: "VM Automation Standards"
-applyTo:
-  - "Vagrantfile"
-  - "**/*.yml"
-  - "**/*.yaml"
-  - "**/*.ps1"
-  - "**/*.sh"
+applyTo: "Vagrantfile, **/*.yml, **/*.yaml, **/*.ps1, **/*.sh"
 ---
 
 # VM Automation Project Instructions
