@@ -34,11 +34,8 @@ Vagrant.configure("2") do |config|
     h.enable_virtualization_extensions = true
   end
 
-  config.vm.provision "ansible" do |ansible|
-    ansible.playbook = "../../ansible/playbooks/ping.yml"
-    ansible.extra_vars = {
-      ansible_user: ansible_user,
-      ansible_ssh_private_key_file: ansible_key
-    }
-  end
+  # Ansible provisioning is intentionally omitted here.
+  # Windows Vagrant (required for Hyper-V) cannot locate ansible-playbook on the
+  # Windows host. Provisioning is handled by the Makefile, which runs
+  # ansible-playbook from WSL after vagrant up --no-provision completes.
 end
