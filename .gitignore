@@ -218,5 +218,9 @@ __marimo__/
 # Vagrant
 .vagrant/
 
+# Generated runtime inventory (created by Makefile targets)
+ansible/inventory/generated/*.yml
+!ansible/inventory/generated/.gitkeep
+
 # Docker
 .docker
