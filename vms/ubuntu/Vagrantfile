@@ -32,5 +32,8 @@ Vagrant.configure("2") do |config|
     h.enable_virtualization_extensions = true
   end
 
-  # Script provisioning is executed from Makefile over vagrant ssh.
+  # Simple test provisioner for validating script-based provisioning.
+  config.vm.provision "shell",
+    path: "scripts/provision.sh",
+    privileged: false
 end
