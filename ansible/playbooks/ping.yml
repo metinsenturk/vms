@@ -1,7 +1,0 @@
----
-- name: Validate Ubuntu baseline connectivity
-  hosts: all
-  gather_facts: false
-  tasks:
-    - name: Verify Ansible control path with ping module
-      ansible.builtin.ping:

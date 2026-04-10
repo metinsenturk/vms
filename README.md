@@ -1,18 +1,17 @@
 # VM Automation Lab
 
-This repository uses a per-VM Vagrant layout under `vms/` and shared provisioning assets under `ansible/`.
+This repository uses a per-VM Vagrant layout under `vms/` with script-based provisioning.
 
 Supported execution model:
 - Run `make` from WSL.
 - Use Windows-host Vagrant through PowerShell for Hyper-V operations.
-- Run Ansible from WSL against runtime inventory generated from `vagrant ssh-config`.
+- Run script provisioning from inside the guest VM over `vagrant ssh`.
 
 ## Structure
 
 - `vms/<name>/Vagrantfile`: VM-specific orchestration.
 - `.env`: shared environment values.
 - `vms/<name>/.env`: optional per-VM overrides.
-- `ansible/`: centralized inventory and playbooks.
 
 ## Day 1 Quickstart
 
@@ -24,7 +23,7 @@ Supported execution model:
 make bringup
 ```
 
-4. Run playbook provisioning:
+4. Run script provisioning:
 
 ```bash
 make provision

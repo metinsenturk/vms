@@ -11,7 +11,7 @@ applyTo: "Vagrantfile, Makefile, **/*.yml, **/*.yaml, **/*.ps1, **/*.sh"
 - Prefer clear, maintainable code over clever one-liners.
 - Keep changes small, focused, and easy to review.
 - Preserve idempotent behavior for provisioning and automation tasks.
-- Choose declarative tooling (for example, Ansible modules) over imperative command chains when possible.
+- Prefer clear, deterministic scripting over dense imperative command chains.
 
 ## Bash and Shell Rules
 

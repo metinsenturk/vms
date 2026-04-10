@@ -1,16 +1,11 @@
 SHELL := /usr/bin/env bash
 
-.PHONY: help check-tools doctor up status ssh inventory verify provision bringup rebuild halt destroy clean
+.PHONY: help check-tools doctor up status ssh vm-info provision bringup rebuild halt destroy clean
 
-# Supported model: run make from WSL, drive Hyper-V Vagrant via Windows PowerShell,
-# and run Ansible from WSL using inventory generated from live Vagrant ssh-config.
+# Supported model: run make from WSL and drive Hyper-V Vagrant via Windows PowerShell.
 VAGRANT_PS := powershell.exe -NoProfile -Command
 UBUNTU_VM_DIR_WIN := d:\vm-home\vms\ubuntu
-VM_NAME ?= ubuntu
-INVENTORY_DIR := ansible/inventory/generated
-INVENTORY_FILE := $(INVENTORY_DIR)/$(VM_NAME).yml
-PING_HOST_PATTERN ?= all
-PLAYBOOK ?= ansible/playbooks/ping.yml
+PROVISION_SCRIPT ?= /vagrant/scripts/provision.sh
 
 define assert_windows_interop
 	if ! command -v cmd.exe >/dev/null 2>&1; then \
@@ -28,19 +23,18 @@ endef
 help:
 	@echo "Available targets:"
 	@echo "  help         - Show this help text"
-	@echo "  check-tools  - Validate WSL Ansible and Windows Vagrant availability"
+	@echo "  check-tools  - Validate Windows Vagrant availability from WSL"
 	@echo "  doctor       - Diagnose WSL Windows interop and tools availability"
 	@echo "  up           - Start VM using Hyper-V provider"
 	@echo "  status       - Show VM status"
 	@echo "  ssh          - SSH into VM (optional: CMD='<command>')"
-	@echo "  inventory    - Generate runtime Ansible inventory from vagrant ssh-config"
-	@echo "  verify       - Run ansible ping against generated inventory"
-	@echo "  provision    - Run playbook against generated inventory"
-	@echo "  bringup      - check-tools -> up -> inventory -> verify"
-	@echo "  rebuild      - destroy -> up -> inventory -> verify"
+	@echo "  vm-info      - Collect VM system and user information"
+	@echo "  provision    - Run guest script provisioning (PROVISION_SCRIPT=...)"
+	@echo "  bringup      - check-tools -> up"
+	@echo "  rebuild      - destroy -> up"
 	@echo "  halt         - Gracefully stop VM"
 	@echo "  destroy      - Destroy VM"
-	@echo "  clean        - Remove generated inventory artifacts"
+	@echo "  clean        - No-op placeholder"
 
 doctor:
 	@echo "=== WSL Windows interop ==="; \
@@ -93,15 +87,6 @@ doctor:
 		echo "      /etc/wsl.conf not present (interop defaults to enabled)"; \
 	fi; \
 	echo ""; \
-	echo "=== WSL-side tools ==="; \
-	for tool in ansible ansible-playbook; do \
-		if command -v $$tool >/dev/null 2>&1; then \
-			echo "OK    $$tool: $$($$tool --version 2>&1 | head -n1)"; \
-		else \
-			echo "MISS  $$tool not found in WSL PATH"; \
-		fi; \
-	done; \
-	echo ""; \
 	echo "=== Windows-side tools (requires working interop) ==="; \
 	if command -v cmd.exe >/dev/null 2>&1 && cmd.exe /c ver >/dev/null 2>&1; then \
 		if command -v powershell.exe >/dev/null 2>&1; then \
@@ -123,14 +108,6 @@ doctor:
 
 check-tools:
 	@set -euo pipefail; \
-	if ! command -v ansible >/dev/null 2>&1; then \
-		echo "ERROR: ansible not found in WSL PATH"; \
-		exit 1; \
-	fi; \
-	if ! command -v ansible-playbook >/dev/null 2>&1; then \
-		echo "ERROR: ansible-playbook not found in WSL PATH"; \
-		exit 1; \
-	fi; \
 	$(assert_windows_interop); \
 	if ! command -v powershell.exe >/dev/null 2>&1; then \
 		echo "ERROR: powershell.exe not reachable from WSL"; \
@@ -158,49 +135,19 @@ ssh:
 		$(VAGRANT_PS) "Set-Location '$(UBUNTU_VM_DIR_WIN)'; vagrant ssh"; \
 	fi
 
-inventory:
+vm-info:
 	@set -euo pipefail; \
 	$(assert_windows_interop); \
-	mkdir -p "$(INVENTORY_DIR)"; \
-	ssh_cfg_file="$$(mktemp)"; \
-	$(VAGRANT_PS) "Set-Location '$(UBUNTU_VM_DIR_WIN)'; vagrant ssh-config" > "$$ssh_cfg_file"; \
-	host_name="$$(awk '$$1=="HostName" {print $$2}' "$$ssh_cfg_file" | head -n1)"; \
-	port="$$(awk '$$1=="Port" {print $$2}' "$$ssh_cfg_file" | head -n1)"; \
-	user="$$(awk '$$1=="User" {print $$2}' "$$ssh_cfg_file" | head -n1)"; \
-	identity_file="$$(awk '$$1=="IdentityFile" {print $$2}' "$$ssh_cfg_file" | head -n1)"; \
-	rm -f "$$ssh_cfg_file"; \
-	if [ -z "$$host_name" ] || [ -z "$$port" ] || [ -z "$$user" ] || [ -z "$$identity_file" ]; then \
-		echo "ERROR: could not parse vagrant ssh-config. Is the VM running?"; \
-		exit 1; \
-	fi; \
-	identity_file="$${identity_file//\\\\//}"; \
-	if [[ "$$identity_file" =~ ^([A-Za-z]):/(.*)$$ ]]; then \
-		drive="$${BASH_REMATCH[1],,}"; \
-		rest="$${BASH_REMATCH[2]}"; \
-		identity_file="/mnt/$$drive/$$rest"; \
-	fi; \
-	printf '%s\n' \
-		'all:' \
-		'  hosts:' \
-		'    $(VM_NAME):' \
-		"      ansible_host: $$host_name" \
-		"      ansible_port: $$port" \
-		"      ansible_user: $$user" \
-		"      ansible_ssh_private_key_file: $$identity_file" \
-		'  vars:' \
-		'    ansible_connection: ssh' \
-		> "$(INVENTORY_FILE)"
-	@echo "Generated inventory: $(INVENTORY_FILE)"
+	$(VAGRANT_PS) "Set-Location '$(UBUNTU_VM_DIR_WIN)'; vagrant ssh -c \"bash /vagrant/scripts/vm-info.sh\""
 
-verify: inventory
-	ansible -i "$(INVENTORY_FILE)" "$(PING_HOST_PATTERN)" -m ansible.builtin.ping
+provision:
+	@set -euo pipefail; \
+	$(assert_windows_interop); \
+	$(VAGRANT_PS) "Set-Location '$(UBUNTU_VM_DIR_WIN)'; vagrant ssh -c \"if [ -x '$(PROVISION_SCRIPT)' ]; then bash '$(PROVISION_SCRIPT)'; else echo 'Provision script not found or not executable: $(PROVISION_SCRIPT)'; exit 1; fi\""
 
-provision: inventory
-	ansible-playbook -i "$(INVENTORY_FILE)" "$(PLAYBOOK)"
+bringup: check-tools up
 
-bringup: check-tools up inventory verify
-
-rebuild: destroy up inventory verify
+rebuild: destroy up
 
 halt:
 	@set -euo pipefail; \
@@ -213,4 +160,4 @@ destroy:
 	$(VAGRANT_PS) "Set-Location '$(UBUNTU_VM_DIR_WIN)'; vagrant destroy -f"
 
 clean:
-	rm -f "$(INVENTORY_FILE)"
+	@echo "Nothing to clean."

@@ -1,5 +1,5 @@
 ---
-description: "Use when working on VM lifecycle automation with Vagrant, Hyper-V, Ansible, PowerShell, Bash, WinRM, SSH, static lab networking, and provisioning workflows."
+description: "Use when working on VM lifecycle automation with Vagrant, Hyper-V, PowerShell, Bash, WinRM, SSH, static lab networking, and provisioning workflows."
 name: "VM Automation Standards"
 applyTo: "Vagrantfile, **/*.yml, **/*.yaml, **/*.ps1, **/*.sh"
 ---
@@ -14,8 +14,8 @@ applyTo: "Vagrantfile, **/*.yml, **/*.yaml, **/*.ps1, **/*.sh"
 
 ## Core Tooling Rules
 
-- Treat Vagrant as the orchestration layer and Ansible as the primary provisioner.
-- Use shell scripting only for bootstrap or edge-case tasks that are not practical in Ansible.
+- Treat Vagrant as the orchestration layer.
+- Use shell scripting as the primary guest provisioning approach.
 - For Windows-side scripting, prefer PowerShell (`.ps1`).
 - For Linux-side scripting, prefer Bash (`.sh`).
 
@@ -23,32 +23,24 @@ applyTo: "Vagrantfile, **/*.yml, **/*.yaml, **/*.ps1, **/*.sh"
 
 - Use `config.vm.provider "hyperv"` blocks for provider-specific settings.
 - Set VM hardware and host integration settings in Hyper-V provider blocks, including RAM, CPU cores, and virtual switch selection.
-- Prefer `config.vm.provision "ansible"` as the main provisioning phase.
-- Add `config.vm.provision "shell"` only for targeted exceptions.
+- Prefer script provisioning through shell provisioners or `vagrant ssh`-driven scripts.
 - Keep networking deterministic with static IPs and stable DNS naming for the local lab.
-
-## Ansible Standards
-
-- Always add descriptive `name:` fields for tasks so logs are clear and searchable.
-- For Linux targets, prefer native Ansible modules over `shell` and `command` whenever possible.
-- For Windows targets, use `win_` modules (for example `win_package`, `win_copy`) as the default approach.
-- If Windows automation needs a lower-level action, use `win_shell` deliberately and explain why in the task name or nearby comment.
 
 ## Connectivity Assumptions
 
 - Assume SSH connectivity for Linux guests.
-- Assume WinRM (or OpenSSH when explicitly configured) for Windows guest management through Ansible.
+- Assume WinRM (or OpenSSH when explicitly configured) for Windows guest management.
 
 ## Idempotency and Safety
 
 - Write playbooks and scripts to be idempotent and safe to run repeatedly.
 - Avoid duplicate configuration side effects across repeated runs.
-- Prefer module patterns that express desired state instead of imperative command chains.
+- Prefer explicit script checks that guard against repeated side effects.
 
 ## GitOps and Structure
 
-- Keep Vagrantfiles, playbooks, roles, and scripts version-controlled.
-- Favor modular roles and composable playbooks over large monolithic files.
+- Keep Vagrantfiles and scripts version-controlled.
+- Favor small reusable scripts over large monolithic files.
 - Propose changes in a structure suitable for pull-request workflows.
 
 ## Hyper-V and Windows Notes
