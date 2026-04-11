@@ -4,7 +4,7 @@ SHELL := /usr/bin/env bash
 
 # Supported model: run make from WSL and drive Hyper-V Vagrant via Windows PowerShell.
 VAGRANT_PS := powershell.exe -NoProfile -Command
-UBUNTU_VM_DIR_WIN := d:\vm-home\vms\ubuntu
+VM_DIR_WIN := d:\vm-home\vms\hub-01
 PROVISION_SCRIPT ?= /vagrant/scripts/provision.sh
 
 define assert_windows_interop
@@ -119,31 +119,31 @@ check-tools:
 up:
 	@set -euo pipefail; \
 	$(assert_windows_interop); \
-	$(VAGRANT_PS) "Set-Location '$(UBUNTU_VM_DIR_WIN)'; vagrant up --provider=hyperv"
+	$(VAGRANT_PS) "Set-Location '$(VM_DIR_WIN)'; vagrant up --provider=hyperv"
 
 status:
 	@set -euo pipefail; \
 	$(assert_windows_interop); \
-	$(VAGRANT_PS) "Set-Location '$(UBUNTU_VM_DIR_WIN)'; vagrant status"
+	$(VAGRANT_PS) "Set-Location '$(VM_DIR_WIN)'; vagrant status"
 
 ssh:
 	@set -euo pipefail; \
 	$(assert_windows_interop); \
 	if [ -n "$(CMD)" ]; then \
-		$(VAGRANT_PS) "Set-Location '$(UBUNTU_VM_DIR_WIN)'; vagrant ssh -c \"$(CMD)\""; \
+		$(VAGRANT_PS) "Set-Location '$(VM_DIR_WIN)'; vagrant ssh -c \"$(CMD)\""; \
 	else \
-		$(VAGRANT_PS) "Set-Location '$(UBUNTU_VM_DIR_WIN)'; vagrant ssh"; \
+		$(VAGRANT_PS) "Set-Location '$(VM_DIR_WIN)'; vagrant ssh"; \
 	fi
 
 vm-info:
 	@set -euo pipefail; \
 	$(assert_windows_interop); \
-	$(VAGRANT_PS) "Set-Location '$(UBUNTU_VM_DIR_WIN)'; vagrant ssh -c \"bash /vagrant/scripts/vm-info.sh\""
+	$(VAGRANT_PS) "Set-Location '$(VM_DIR_WIN)'; vagrant ssh -c \"bash /vagrant/scripts/vm-info.sh\""
 
 provision:
 	@set -euo pipefail; \
 	$(assert_windows_interop); \
-	$(VAGRANT_PS) "Set-Location '$(UBUNTU_VM_DIR_WIN)'; vagrant ssh -c \"if [ -x '$(PROVISION_SCRIPT)' ]; then bash '$(PROVISION_SCRIPT)'; else echo 'Provision script not found or not executable: $(PROVISION_SCRIPT)'; exit 1; fi\""
+	$(VAGRANT_PS) "Set-Location '$(VM_DIR_WIN)'; vagrant ssh -c \"if [ -x '$(PROVISION_SCRIPT)' ]; then bash '$(PROVISION_SCRIPT)'; else echo 'Provision script not found or not executable: $(PROVISION_SCRIPT)'; exit 1; fi\""
 
 bringup: check-tools up
 
@@ -152,12 +152,12 @@ rebuild: destroy up
 halt:
 	@set -euo pipefail; \
 	$(assert_windows_interop); \
-	$(VAGRANT_PS) "Set-Location '$(UBUNTU_VM_DIR_WIN)'; vagrant halt"
+	$(VAGRANT_PS) "Set-Location '$(VM_DIR_WIN)'; vagrant halt"
 
 destroy:
 	@set -euo pipefail; \
 	$(assert_windows_interop); \
-	$(VAGRANT_PS) "Set-Location '$(UBUNTU_VM_DIR_WIN)'; vagrant destroy -f"
+	$(VAGRANT_PS) "Set-Location '$(VM_DIR_WIN)'; vagrant destroy -f"
 
 clean:
 	@echo "Nothing to clean."

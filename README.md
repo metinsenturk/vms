@@ -16,7 +16,7 @@ Supported execution model:
 ## Day 1 Quickstart
 
 1. Review `.env` and update values for your host if required.
-2. Optional: add overrides in `vms/ubuntu/.env`.
+2. Optional: add overrides in `vms/hub-01/.env`.
 3. From repository root in WSL, run:
 
 ```bash

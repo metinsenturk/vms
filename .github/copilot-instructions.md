@@ -44,7 +44,7 @@ Provisioning should be handled via `vagrant ssh -c` or direct SSH commands to en
 ---
 
 ### 📂 Directory Structure
-* `vms/`: Contains the `Vagrantfile` for each environment (e.g., `vms/ubuntu`).
+* `vms/`: Contains the `Vagrantfile` for each environment (e.g., `vms/hub-01`).
 * `vms/<name>/scripts/`: Contains guest-side provisioning scripts.
 * `Makefile`: The main entry point for all operations.
 

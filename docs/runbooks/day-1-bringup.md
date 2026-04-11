@@ -6,14 +6,14 @@ Bring up the first Ubuntu VM on Hyper-V and validate guest accessibility and scr
 
 ## Inputs
 
-- VM folder: `vms/ubuntu`
-- Hostname: `ubuntu`
+- VM folder: `vms/hub-01`
+- Hostname: `hub-01`
 - Hyper-V switch: `External Virtual Switch`
 
 ## Steps
 
 1. Confirm `.env` exists at repository root.
-2. Optionally add VM-local overrides in `vms/ubuntu/.env`.
+2. Optionally add VM-local overrides in `vms/hub-01/.env`.
 3. Start and verify from repository root in WSL:
 
 ```bash
