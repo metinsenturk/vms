@@ -71,8 +71,7 @@ install_packages() {
     docker-buildx-plugin \
     docker-compose-plugin \
     git \
-    make \
-    yq
+    make
 }
 
 configure_user_access() {
