@@ -16,14 +16,17 @@ env = {}
 load_env(File.expand_path("../../.env", __dir__), env)
 load_env(File.expand_path(".env", __dir__), env)
 
+hyperv_switch = env.fetch("HYPERV_SWITCH_NAME", "Default Switch")
 vm_name = env.fetch("VM_NAME", "ubuntu")
 vm_cpus = env.fetch("VM_CPUS", "2").to_i
-vm_memory = env.fetch("VM_MEMORY", "2048")
+vm_memory = env.fetch("VM_MEMORY", "2048").to_i
 vm_box = env.fetch("UBUNTU_BOX", "bento/ubuntu-22.04")
 
 Vagrant.configure("2") do |config|
   config.vm.box = vm_box
   config.vm.hostname = vm_name
+
+  config.vm.network "public_network", bridge: hyperv_switch
 
   config.vm.provider "hyperv" do |h|
     h.vmname = vm_name
