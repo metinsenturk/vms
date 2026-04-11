@@ -16,10 +16,35 @@ env = {}
 load_env(File.expand_path("../../.env", __dir__), env)
 load_env(File.expand_path(".env", __dir__), env)
 
+def env_bool(env_hash, key, default)
+  value = env_hash.fetch(key, default.to_s).strip.downcase
+  ["1", "true", "yes", "on"].include?(value)
+end
+
 hyperv_switch = env.fetch("HYPERV_SWITCH_NAME", "Default Switch")
-vm_name = env.fetch("VM_NAME", "hub-01")
-vm_cpus = env.fetch("VM_CPUS", "2").to_i
-vm_memory = env.fetch("VM_MEMORY", "2048").to_i
+vm_name = env.fetch("HYPERV_VMNAME", "hub-01")
+vm_cpus = env.fetch("HYPERV_CPUS", "2").to_i
+vm_memory = env.fetch("HYPERV_MEMORY", "2048").to_i
+vm_maxmemory_raw = env.fetch("HYPERV_MAXMEMORY", "8192").strip
+vm_maxmemory = vm_maxmemory_raw.empty? || vm_maxmemory_raw.downcase == "nil" ? nil : vm_maxmemory_raw.to_i
+vm_mac = env.fetch("HYPERV_MAC", "").strip
+vm_vlan_id = env.fetch("HYPERV_VLAN_ID", "0").to_i
+vm_auto_start_action = env.fetch("HYPERV_AUTO_START_ACTION", "Nothing")
+vm_auto_stop_action = env.fetch("HYPERV_AUTO_STOP_ACTION", "ShutDown")
+vm_linked_clone = env_bool(env, "HYPERV_LINKED_CLONE", false)
+vm_enable_virt_extensions = env_bool(env, "HYPERV_ENABLE_VIRT_EXTENSIONS", false)
+vm_enable_checkpoints = env_bool(env, "HYPERV_ENABLE_CHECKPOINTS", true)
+vm_enable_auto_checkpoints = env_bool(env, "HYPERV_ENABLE_AUTO_CHECKPOINTS", false)
+vm_enable_enhanced_session = env_bool(env, "HYPERV_ENABLE_ENHANCED_SESSION", false)
+vm_ip_address_timeout = env.fetch("HYPERV_IP_ADDRESS_TIMEOUT", "120").to_i
+vm_integration_services = {
+  guest_service_interface: env_bool(env, "HYPERV_SVC_GUEST_SERVICE_INTERFACE", true),
+  heartbeat: env_bool(env, "HYPERV_SVC_HEARTBEAT", true),
+  key_value_pair_exchange: env_bool(env, "HYPERV_SVC_KVP_EXCHANGE", true),
+  shutdown: env_bool(env, "HYPERV_SVC_SHUTDOWN", true),
+  time_synchronization: env_bool(env, "HYPERV_SVC_TIME_SYNC", true),
+  vss: env_bool(env, "HYPERV_SVC_VSS", true)
+}
 vm_box = env.fetch("UBUNTU_BOX", "bento/ubuntu-22.04")
 
 Vagrant.configure("2") do |config|
@@ -33,7 +58,18 @@ Vagrant.configure("2") do |config|
       h.vmname = vm_name
       h.cpus = vm_cpus
       h.memory = vm_memory
-      h.enable_virtualization_extensions = true
+      h.maxmemory = vm_maxmemory
+      h.auto_start_action = vm_auto_start_action
+      h.auto_stop_action = vm_auto_stop_action
+      h.linked_clone = vm_linked_clone
+      h.enable_virtualization_extensions = vm_enable_virt_extensions
+      h.enable_checkpoints = vm_enable_checkpoints
+      h.enable_automatic_checkpoints = vm_enable_auto_checkpoints
+      h.enable_enhanced_session_mode = vm_enable_enhanced_session
+      h.ip_address_timeout = vm_ip_address_timeout
+      h.vm_integration_services = vm_integration_services
+      h.mac = vm_mac unless vm_mac.empty?
+      h.vlan_id = vm_vlan_id if vm_vlan_id > 0
     end
 
     # Simple test provisioner for validating script-based provisioning.
