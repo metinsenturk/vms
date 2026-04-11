@@ -54,3 +54,19 @@ Provisioning should be handled via `vagrant ssh -c` or direct SSH commands to en
 1. **Do Not Run `vagrant` in WSL:** Always use `make` or call the Windows `vagrant.exe`. Native WSL Vagrant cannot manage Hyper-V and will cause permission errors on `/mnt/`.
 2. **Permission Errors:** If you see `Exec format error`, it is likely due to `PR_SET_NO_NEW_PRIVS` (often caused by starting the terminal from inside VS Code). Refer to `briefs/wsl-windows-interop.md`.
 3. **Scripting Safety:** Ensure all `.sh` scripts use `set -euo pipefail` per `coding-standards.instructions.md`.
+
+#### Naming & Directory Convention
+* **The Index Rule:** All servers must use the [name]-[index] format (e.g., hub-01, srv-01).
+* **One Folder, One Identity:** The directory name under `vms/` MUST match the VM's hostname and the Hyper-V display name.
+    * *Example:* `vms/hub-01/` contains a VM named `hub-01`.
+* **Explicit Definition:** Always use `config.vm.define "name"` and `config.vm.hostname = "name"` to prevent Vagrant from using the default "default" string.
+* **Hardcoded Display Name:** The Hyper-V display name must match the folder name to ensure clarity in the Windows UI.
+
+#### Networking & IP Management
+* **Public Bridge:** Use the `public_network` setting to ensure the VM is a first-class citizen on your home network.
+    ```ruby
+    config.vm.network "public_network", bridge: "External Virtual Switch"
+    ```
+* **Switch Variable**: The bridge name must be provided via the $HYPERV_SWITCH_NAME environment variable.
+* **Deterministic MAC Addresses:** To ensure your router's DHCP reservation never breaks, hardcode a MAC address starting with the Hyper-V prefix `00155D`.
+    * *Rule:* Use `00155D` + 6 unique hex characters
