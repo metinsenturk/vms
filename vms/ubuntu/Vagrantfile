@@ -36,14 +36,15 @@ Vagrant.configure("2") do |config|
   end
 
   # Simple test provisioner for validating script-based provisioning.
-  # run: "always" ensures it executes on vagrant up even if already provisioned once.
-  # Remove or change to "once" after confirming provisioning works.
-  config.vm.provision "shell",
+  # run: can be "once" or "always"
+  config.vm.provision "initial-setup",
+    type: "shell",
     path: "scripts/provision.sh",
     privileged: false,
     run: "once"
 
-  config.vm.provision "shell",
+  config.vm.provision "get-system-info",
+    type: "shell",
     path: "scripts/vm-info.sh",
     privileged: false,
     run: "always"
