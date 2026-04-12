@@ -1,4 +1,26 @@
 #!/bin/bash
+# ==============================================================================
+# SCRIPT: docker-volume-sync.sh
+# DESCRIPTION: 
+#   A generic utility to migrate a Docker Named Volume from a local host to a 
+#   remote VM. It uses an ephemeral Alpine "sidecar" container to stream data 
+#   over SSH without creating intermediate files on disk.
+#
+# ARGUMENTS:
+#   $1 - VOLUME_NAME: The name of the Docker volume to migrate.
+#   $2 - REMOTE_IP:   The IP address of the target VM.
+#
+# REQUIREMENTS:
+#   - SSH_OPTS must be exported by the parent script (containing private keys).
+#   - Docker must be installed and running on both local and remote hosts.
+#   - The remote user must have 'docker' group permissions.
+#
+# LOGIC FLOW:
+#   1. Calculate local volume size and regular file count.
+#   2. Purge existing volume on remote to ensure a clean state (idempotency).
+#   3. Stream 'tar' output through an SSH pipe to the remote Docker daemon.
+#   4. Re-calculate remote stats and verify that the regular file count matches.
+# ==============================================================================
 # Usage: ./docker-volume-sync.sh <volume_name> <remote_ip>
 
 VOLUME_NAME=$1

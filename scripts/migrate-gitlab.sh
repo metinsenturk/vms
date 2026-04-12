@@ -1,4 +1,30 @@
 #!/bin/bash
+# ==============================================================================
+# SCRIPT: migrate-gitlab.sh
+# DESCRIPTION: 
+#   Orchestrates the migration of a GitLab instance's persistent storage. 
+#   Specifically targets the Data, Config, and Logs volumes. This script handles 
+#   the bridging between Windows/WSL and the Linux VM environment.
+#
+# USAGE:
+#   Run from the project root: ./scripts/migrate-gitlab.sh
+#
+# RELEVANT VOLUMES:
+#   - home_gitlab_data:   Repositories and database files.
+#   - home_gitlab_config: SSH keys and gitlab.rb settings.
+#   - home_gitlab_logs:   Application and system logs.
+#
+# LOGIC FLOW:
+#   1. Securely migrates the Hyper-V private key from NTFS to WSL (~/.ssh/keys)
+#      to resolve permission 0777 issues.
+#   2. Loads environment variables (SERVER_IP) from the project .env file.
+#   3. Iterates through GitLab-specific volumes and calls docker-volume-sync.sh.
+#   4. Halts execution if any volume fails verification.
+#
+# PRE-REQUISITES:
+#   - Local GitLab containers MUST be stopped (Cold Migration) to prevent 
+#     database corruption.
+# ==============================================================================
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PARENT_DIR="$(dirname "$SCRIPT_DIR")"
 
