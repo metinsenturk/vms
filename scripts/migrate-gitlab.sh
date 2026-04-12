@@ -62,14 +62,25 @@ echo "⚠️  Ensure local GitLab is STOPPED."
 read -p "Press [Enter] to begin..."
 
 VOLUMES=("home_gitlab_data" "home_gitlab_config" "home_gitlab_logs")
+FAILED_VOLUMES=()
 
 for vol in "${VOLUMES[@]}"; do
-    # Call the sync script
     bash "$SCRIPT_DIR/docker-volume-sync.sh" "$vol" "$SERVER_IP"
     if [ $? -ne 0 ]; then
-        echo "❌ Migration failed at $vol"
-        exit 1
+        FAILED_VOLUMES+=("$vol")
+        echo "❌ $vol failed."
+    else
+        echo "✅ $vol completed."
     fi
 done
 
-echo "🎉 GitLab migration complete!"
+# Final Summary Log
+echo -e "\n=============================="
+if [ ${#FAILED_VOLUMES[@]} -eq 0 ]; then
+    echo "🎉 ALL VOLUMES SUCCESSFULLY COPIED"
+else
+    echo "❌ MIGRATION INCOMPLETE"
+    echo "The following volumes failed: ${FAILED_VOLUMES[*]}"
+    exit 1
+fi
+echo "=============================="

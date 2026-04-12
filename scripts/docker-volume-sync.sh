@@ -55,10 +55,10 @@ LOCAL_SIZE=$(get_volume_size "$VOLUME_NAME" "local")
 $SSH_CMD "docker volume rm -f $VOLUME_NAME > /dev/null 2>&1 || true"
 $SSH_CMD "docker volume create $VOLUME_NAME" > /dev/null
 
-# 2. Proceed with the sync as before
+# 2. Proceed with the sync (Removed -v for clean output)
 echo "🚀 Streaming data to $VOLUME_NAME..."
-docker run --rm -v "$VOLUME_NAME":/source alpine tar --numeric-owner -czvf - -C /source . | \
-$SSH_CMD "docker run --rm -i -v $VOLUME_NAME:/dest alpine tar -xzvf - -C /dest"
+docker run --rm -v "$VOLUME_NAME":/source alpine tar --numeric-owner -czf - -C /source . | \
+$SSH_CMD "docker run --rm -i -v $VOLUME_NAME:/dest alpine tar -xzf - -C /dest"
 
 # 3. Verification
 # Capture output (which now has two lines: size and count)
