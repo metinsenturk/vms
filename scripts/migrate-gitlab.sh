@@ -1,10 +1,23 @@
 #!/bin/bash
-
-# 1. Get the absolute path of the scripts directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PARENT_DIR="$(dirname "$SCRIPT_DIR")"
 
-# 2. Load .env from the parent directory (vm-home)
+# Create a secure folder in your WSL home
+mkdir -p ~/.ssh/keys
+
+# Copy the key from the Windows drive to WSL
+cp /mnt/d/vm-home/vms/hub-01/.vagrant/machines/hub-01/hyperv/private_key ~/.ssh/keys/hub01_key
+
+# Set the strictly required permissions (Read/Write for owner only)
+chmod 600 ~/.ssh/keys/hub01_key
+
+# Update this line in migrate-gitlab.sh
+ID_KEY="$HOME/.ssh/keys/hub01_key"
+
+# We export this so the child script (docker-volume-sync) can see it
+export SSH_OPTS="-i $ID_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+
+# 2. Load .env
 if [ -f "$PARENT_DIR/.env" ]; then
     # Clean and export variables
     export $(grep -v '^#' "$PARENT_DIR/.env" | tr -d '\r' | xargs)
@@ -25,7 +38,8 @@ read -p "Press [Enter] to begin..."
 VOLUMES=("home_gitlab_data" "home_gitlab_config" "home_gitlab_logs")
 
 for vol in "${VOLUMES[@]}"; do
-    "$SCRIPT_DIR/docker-volume-sync.sh" "$vol" "$SERVER_IP"
+    # Call the sync script
+    bash "$SCRIPT_DIR/docker-volume-sync.sh" "$vol" "$SERVER_IP"
     if [ $? -ne 0 ]; then
         echo "❌ Migration failed at $vol"
         exit 1
