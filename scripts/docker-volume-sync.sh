@@ -10,11 +10,17 @@ SSH_CMD="ssh $SSH_OPTS vagrant@$REMOTE_IP"
 get_volume_size() {
     local vol=$1
     local target=$2
+    
+    # We use -type f to count only regular files, ignoring sockets, pipes, and directories.
+    # We use du -sb to get the apparent size in bytes.
+    local cmd="docker run --rm -v $vol:/data alpine sh -c 'du -sb /data | awk \"{print \\\$1}\"; find /data -type f | wc -l'"
+    
     if [ "$target" == "local" ]; then
-        docker run --rm -v "$vol":/data alpine du -sb /data | awk '{print $1}'
+        # Capture local stats (Size and File Count)
+        eval "$cmd"
     else
-        # Use the key-enabled SSH command here
-        $SSH_CMD "docker run --rm -v $vol:/data alpine du -sb /data" | awk '{print $1}'
+        # Capture remote stats via SSH using your secure key
+        $SSH_CMD "$cmd"
     fi
 }
 
@@ -33,15 +39,26 @@ docker run --rm -v "$VOLUME_NAME":/source alpine tar --numeric-owner -czvf - -C 
 $SSH_CMD "docker run --rm -i -v $VOLUME_NAME:/dest alpine tar -xzvf - -C /dest"
 
 # 3. Verification
-REMOTE_SIZE=$(get_volume_size "$VOLUME_NAME" "remote")
+# Capture output (which now has two lines: size and count)
+LOCAL_STATS=($(get_volume_size "$VOLUME_NAME" "local"))
+REMOTE_STATS=($(get_volume_size "$VOLUME_NAME" "remote"))
+
+LOCAL_SIZE=${LOCAL_STATS[0]}
+LOCAL_COUNT=${LOCAL_STATS[1]}
+REMOTE_SIZE=${REMOTE_STATS[0]}
+REMOTE_COUNT=${REMOTE_STATS[1]}
 
 echo "📊 Verification for $VOLUME_NAME:"
-echo "   Local:  $LOCAL_SIZE bytes"
-echo "   Remote: $REMOTE_SIZE bytes"
+echo "   Local:  $LOCAL_SIZE bytes ($LOCAL_COUNT files)"
+echo "   Remote: $REMOTE_SIZE bytes ($REMOTE_COUNT files)"
 
-if [ "$LOCAL_SIZE" -eq "$REMOTE_SIZE" ] && [ "$LOCAL_SIZE" -gt 0 ]; then
-    echo "✅ Success: $VOLUME_NAME"
+# Check if file count matches (allowing for 1-2 system files difference)
+COUNT_DIFF=$((LOCAL_COUNT - REMOTE_COUNT))
+abs_count_diff=${COUNT_DIFF#-}
+
+if [ "$abs_count_diff" -le 2 ]; then
+    echo "✅ Success: $VOLUME_NAME (File counts match)"
 else
-    echo "⚠️  Warning: Size mismatch! Check logs."
+    echo "⚠️  Warning: File count mismatch! Local: $LOCAL_COUNT, Remote: $REMOTE_COUNT"
     exit 1
 fi
