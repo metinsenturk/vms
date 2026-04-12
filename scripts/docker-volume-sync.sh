@@ -23,9 +23,12 @@ echo "🔄 Syncing $VOLUME_NAME..."
 LOCAL_SIZE=$(get_volume_size "$VOLUME_NAME" "local")
 
 # 1. Ensure remote volume exists (using the key)
+# 1. Force delete and recreate the volume to ensure it's empty
+$SSH_CMD "docker volume rm -f $VOLUME_NAME > /dev/null 2>&1 || true"
 $SSH_CMD "docker volume create $VOLUME_NAME" > /dev/null
 
-# 2. Stream data (using the key)
+# 2. Proceed with the sync as before
+echo "🚀 Streaming data to $VOLUME_NAME..."
 docker run --rm -v "$VOLUME_NAME":/source alpine tar --numeric-owner -czvf - -C /source . | \
 $SSH_CMD "docker run --rm -i -v $VOLUME_NAME:/dest alpine tar -xzvf - -C /dest"
 
