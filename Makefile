@@ -7,6 +7,12 @@ VAGRANT_PS := powershell.exe -NoProfile -Command
 VM_DIR_WIN := d:\vm-home\vms\hub-01
 PROVISION_SCRIPT ?= /vagrant/scripts/provision.sh
 
+# Load variables from .env file
+ifneq (,$(wildcard ./.env))
+    include .env
+    export
+endif
+
 define assert_windows_interop
 	if ! command -v cmd.exe >/dev/null 2>&1; then \
 		echo "ERROR: cmd.exe not found from WSL."; \
@@ -161,3 +167,9 @@ destroy:
 
 clean:
 	@echo "Nothing to clean."
+
+verify-dns:
+	@echo "Checking if Windows hosts file is blocking hub.local..."
+	@grep "hub.local" /mnt/c/Windows/System32/drivers/etc/hosts || echo "Clear!"
+	@echo "Testing Pi-hole resolution on $(SERVER_IP)..."
+	@dig @$(SERVER_IP) anything.hub.local +short
