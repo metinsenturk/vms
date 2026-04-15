@@ -1,4 +1,6 @@
 #!/bin/bash
+set -euo pipefail
+
 REPO_URL="https://github.com/metinsenturk/home-cloud.git"
 DEST_DIR="$HOME/home-cloud"
 ENV_FILE="$DEST_DIR/.env"
@@ -18,9 +20,12 @@ if [ ! -f "$ENV_FILE" ]; then
     echo "Creating .env from example..."
     cp "$DEST_DIR/.env.example" "$ENV_FILE"
     
+    # Variables are passed from Vagrant via the env: provisioner option
     echo "💉 Injecting SERVER_IP: $SERVER_IP"
-    # Note: We use the $SERVER_IP variable passed from Vagrant/Shell
     sed -i "s|^SERVER_IP=.*|SERVER_IP=$SERVER_IP|" "$ENV_FILE"
+
+    echo "💉 Injecting DOMAIN: $DOMAIN"
+    sed -i "s|^DOMAIN=.*|DOMAIN=$DOMAIN|" "$ENV_FILE"
 else
     echo "📄 .env file already exists. Skipping injection to preserve manual changes."
 fi
