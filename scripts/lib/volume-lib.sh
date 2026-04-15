@@ -19,6 +19,28 @@ readonly _VOLUME_LIB_LOADED=1
 # Path to the SSH key used for the hub-01 VM
 readonly _DEFAULT_KEY="$HOME/.ssh/keys/hub01_key"
 
+require_command() {
+    local cmd="$1"
+
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        echo "❌ Error: required command not found: $cmd" >&2
+        return 1
+    fi
+}
+
+read_env_value() {
+    local env_file="$1"
+    local key="$2"
+
+    awk -F= -v target="$key" '
+        $0 !~ /^[[:space:]]*#/ && $1 == target {
+            sub(/^[^=]*=/, "", $0)
+            print $0
+            exit
+        }
+    ' "$env_file"
+}
+
 # ==============================================================================
 # lib_init
 # Sets up the SSH key, loads .env, and exports SSH_OPTS / SERVER_IP / SSH_CMD.
@@ -31,29 +53,36 @@ lib_init() {
     local env_file="$project_root/.env"
     local key_src="/mnt/d/vm-home/vms/hub-01/.vagrant/machines/hub-01/hyperv/private_key"
 
+    require_command docker
+    require_command ssh
+    require_command cp
+    require_command awk
+
     # Ensure the secure key directory exists
     mkdir -p "$HOME/.ssh/keys"
+
+    if [[ ! -f "$key_src" ]]; then
+        echo "❌ Error: SSH key not found at $key_src" >&2
+        return 1
+    fi
 
     # Copy the Vagrant private key to a WSL-safe location and lock permissions
     cp "$key_src" "$_DEFAULT_KEY"
     chmod 600 "$_DEFAULT_KEY"
 
-    # Load environment variables, stripping comments and Windows line endings
     if [[ ! -f "$env_file" ]]; then
         echo "❌ Error: .env not found at $env_file" >&2
         return 1
     fi
 
-    set -a
-    # shellcheck disable=SC1090
-    source <(grep -v '^#' "$env_file" | tr -d '\r')
-    set +a
+    SERVER_IP="$(read_env_value "$env_file" "SERVER_IP" | tr -d '\r')"
 
     if [[ -z "${SERVER_IP:-}" ]]; then
         echo "❌ Error: SERVER_IP not defined in $env_file" >&2
         return 1
     fi
 
+    export SERVER_IP
     export SSH_OPTS="-i $_DEFAULT_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     export SSH_CMD="ssh $SSH_OPTS vagrant@$SERVER_IP"
 }
@@ -116,7 +145,8 @@ volume_pull() {
 
     echo "🔄 Pulling $vol ← $SERVER_IP..."
 
-    # Create local volume if absent (idempotent)
+    # Reset the local destination so verification compares a clean copy.
+    docker volume rm -f "$vol" > /dev/null 2>&1 || true
     docker volume create "$vol" > /dev/null
 
     # Stream: remote tar (create) → SSH pipe → local tar (extract)
