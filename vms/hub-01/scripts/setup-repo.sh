@@ -1,6 +1,18 @@
 #!/bin/bash
 set -euo pipefail
 
+# SERVER_IP is injected by Vagrant via the env: provisioner option.
+if [ -z "${SERVER_IP:-}" ]; then
+    echo "❌ Error: SERVER_IP is not set."
+    exit 1
+fi
+
+# DOMAIN is injected by Vagrant via the env: provisioner option.
+if [ -z "${DOMAIN:-}" ]; then
+    echo "❌ Error: DOMAIN is not set."
+    exit 1
+fi
+
 REPO_URL="https://github.com/metinsenturk/home-cloud.git"
 DEST_DIR="$HOME/home-cloud"
 ENV_FILE="$DEST_DIR/.env"

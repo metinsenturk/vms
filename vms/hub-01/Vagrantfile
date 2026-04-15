@@ -111,7 +111,8 @@ Vagrant.configure("2") do |config|
       type: "shell",
       path: "scripts/check-wildcard-dns.sh",
       privileged: false,
-      run: "always"
+      run: "always",
+      env: { "SERVER_IP" => vm_server_ip }
     
       vm.vm.provision "get-system-info",
       type: "shell",

@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# SERVER_IP is injected by Vagrant via the env: provisioner option.
+if [ -z "${SERVER_IP:-}" ]; then
+    echo "❌ Error: SERVER_IP is not set."
+    exit 1
+fi
+
 # 1. Check if the container is actually running
 if ! docker ps | grep -q pihole; then
     echo "❌ Error: Pi-hole container is not running."
@@ -22,9 +28,9 @@ fi
 echo "🔍 Testing internal resolution for anything.hub.local..."
 DIG_RESULT=$(dig @127.0.0.1 anything.hub.local +short)
 
-if [ "$DIG_RESULT" == "192.168.1.138" ]; then
+if [ "$DIG_RESULT" == "$SERVER_IP" ]; then
     echo "✅ Functional Test Passed: anything.hub.local -> $DIG_RESULT"
 else
-    echo "❌ Functional Test Failed: Expected 192.168.1.138 but got '$DIG_RESULT'"
+    echo "❌ Functional Test Failed: Expected $SERVER_IP but got '$DIG_RESULT'"
     exit 1
 fi
