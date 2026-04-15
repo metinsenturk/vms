@@ -4,6 +4,25 @@ set -euo pipefail
 REPO_DIR="$HOME/home-cloud"
 APPS=(pihole traefik wud dozzle)
 
+run_make_with_docker_group() {
+    local target="$1"
+
+    if id -nG | grep -qw docker; then
+        make "$target"
+        return
+    fi
+
+    if id -nG "$USER" | grep -qw docker; then
+        # Use a fresh docker-group shell so provision runs work immediately
+        # after usermod -aG docker in the same Vagrant provisioning session.
+        sg docker -c "cd '$REPO_DIR' && make '$target'"
+        return
+    fi
+
+    echo "❌ User '$USER' is not in docker group. Re-run install-docker provisioner first."
+    exit 1
+}
+
 echo "🚀 Setting up home-cloud apps..."
 
 cd "$REPO_DIR"
@@ -33,13 +52,13 @@ done
 
 # 4. Create the shared Docker network
 echo "🌐 Creating Docker network..."
-make create-network
+run_make_with_docker_group create-network
 
 # 5. Start each app
 echo "🐳 Starting apps..."
 for app in "${APPS[@]}"; do
     echo "  → Starting $app..."
-    make "up-$app"
+    run_make_with_docker_group "up-$app"
 done
 
 echo "✅ App setup complete!"
