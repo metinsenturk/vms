@@ -1,11 +1,18 @@
 SHELL := /usr/bin/env bash
 
-.PHONY: help check-tools doctor up status ssh vm-info provision bringup rebuild halt destroy clean
+.PHONY: help check-tools doctor \
+	up status ssh vm-info provision bringup rebuild halt destroy clean \
+	up-all halt-all status-all ssh-all provision-all destroy-all vm-info-all
 
 # Supported model: run make from WSL and drive Hyper-V Vagrant via Windows PowerShell.
 VAGRANT_PS := powershell.exe -NoProfile -Command
-VM_DIR_WIN := d:\vm-home\vms\hub-01
-PROVISION_SCRIPT ?= /vagrant/scripts/provision.sh
+PROVIDER ?= hyperv
+
+# Friendly aliases used in targets (up-hub, up-docker, up-base)
+VM_ALIASES := base docker hub
+VM_NAME_base := base-server-01
+VM_NAME_docker := docker-server-01
+VM_NAME_hub := hub-01
 
 # Load variables from .env file
 ifneq (,$(wildcard ./.env))
@@ -31,15 +38,22 @@ help:
 	@echo "  help         - Show this help text"
 	@echo "  check-tools  - Validate Windows Vagrant availability from WSL"
 	@echo "  doctor       - Diagnose WSL Windows interop and tools availability"
-	@echo "  up           - Start VM using Hyper-V provider"
-	@echo "  status       - Show VM status"
-	@echo "  ssh          - SSH into VM (optional: CMD='<command>')"
-	@echo "  vm-info      - Collect VM system and user information"
-	@echo "  provision    - Run guest script provisioning (PROVISION_SCRIPT=...)"
-	@echo "  bringup      - check-tools -> up"
-	@echo "  rebuild      - destroy -> up"
-	@echo "  halt         - Gracefully stop VM"
-	@echo "  destroy      - Destroy VM"
+	@echo "  up-<vm>      - Start one VM (vm: base|docker|hub)"
+	@echo "  halt-<vm>    - Halt one VM"
+	@echo "  status-<vm>  - Status for one VM"
+	@echo "  ssh-<vm>     - SSH one VM (optional: CMD='<command>')"
+	@echo "  vm-info-<vm> - Run /vagrant/scripts/vm-info.sh in one VM"
+	@echo "  provision-<vm> - Run 'vagrant provision' for one VM"
+	@echo "  destroy-<vm> - Destroy one VM"
+	@echo "  up-all       - Start all VMs"
+	@echo "  halt-all     - Halt all VMs"
+	@echo "  status-all   - Status for all VMs"
+	@echo "  ssh-all      - SSH command on all VMs (requires CMD='<command>')"
+	@echo "  provision-all - Provision all VMs"
+	@echo "  destroy-all  - Destroy all VMs"
+	@echo "  bringup      - check-tools -> up-all"
+	@echo "  rebuild      - destroy-all -> up-all"
+	@echo "  up/status/ssh/vm-info/provision/halt/destroy map to hub"
 	@echo "  clean        - No-op placeholder"
 
 doctor:
@@ -122,48 +136,77 @@ check-tools:
 	$(VAGRANT_PS) "if (-not (Get-Command vagrant -ErrorAction SilentlyContinue)) { Write-Host 'ERROR: Windows vagrant not found'; exit 1 }"; \
 	echo "Tools check passed."
 
-up:
-	@set -euo pipefail; \
-	$(assert_windows_interop); \
-	$(VAGRANT_PS) "Set-Location '$(VM_DIR_WIN)'; vagrant up --provider=hyperv"
+define vm_dir
+d:\vm-home\vms\$(VM_NAME_$(1))
+endef
 
-status:
+define run_vagrant
 	@set -euo pipefail; \
 	$(assert_windows_interop); \
-	$(VAGRANT_PS) "Set-Location '$(VM_DIR_WIN)'; vagrant status"
+	$(VAGRANT_PS) "Set-Location '$(call vm_dir,$(1))'; vagrant $(2)"
+endef
 
-ssh:
-	@set -euo pipefail; \
-	$(assert_windows_interop); \
-	if [ -n "$(CMD)" ]; then \
-		$(VAGRANT_PS) "Set-Location '$(VM_DIR_WIN)'; vagrant ssh -c \"$(CMD)\""; \
+# Validate that target alias exists in VM_ALIASES.
+define assert_valid_alias
+	@if [ -z "$(VM_NAME_$*)" ]; then \
+		echo "ERROR: unknown VM alias '$*'. Allowed: $(VM_ALIASES)"; \
+		exit 1; \
+	fi
+endef
+
+up-%:
+	$(assert_valid_alias)
+	$(call run_vagrant,$*,up --provider=$(PROVIDER))
+
+status-%:
+	$(assert_valid_alias)
+	$(call run_vagrant,$*,status)
+
+halt-%:
+	$(assert_valid_alias)
+	$(call run_vagrant,$*,halt)
+
+destroy-%:
+	$(assert_valid_alias)
+	$(call run_vagrant,$*,destroy -f)
+
+provision-%:
+	$(assert_valid_alias)
+	$(call run_vagrant,$*,provision)
+
+vm-info-%:
+	$(assert_valid_alias)
+	$(call run_vagrant,$*,ssh -c "bash /vagrant/scripts/vm-info.sh")
+
+ssh-%:
+	$(assert_valid_alias)
+	@if [ -n "$(CMD)" ]; then \
+		$(call run_vagrant,$*,ssh -c "$(CMD)"); \
 	else \
-		$(VAGRANT_PS) "Set-Location '$(VM_DIR_WIN)'; vagrant ssh"; \
+		$(call run_vagrant,$*,ssh); \
 	fi
 
-vm-info:
+up-all: $(addprefix up-,$(VM_ALIASES))
+
+status-all: $(addprefix status-,$(VM_ALIASES))
+
+halt-all: $(addprefix halt-,$(VM_ALIASES))
+
+provision-all: $(addprefix provision-,$(VM_ALIASES))
+
+destroy-all: $(addprefix destroy-,$(VM_ALIASES))
+
+ssh-all:
 	@set -euo pipefail; \
-	$(assert_windows_interop); \
-	$(VAGRANT_PS) "Set-Location '$(VM_DIR_WIN)'; vagrant ssh -c \"bash /vagrant/scripts/vm-info.sh\""
+	if [ -z "$(CMD)" ]; then \
+		echo "ERROR: ssh-all requires CMD='<command>'"; \
+		exit 1; \
+	fi; \
+	for vm in $(VM_ALIASES); do \
+		$(MAKE) --no-print-directory ssh-$$vm CMD="$(CMD)"; \
+	done
 
-provision:
-	@set -euo pipefail; \
-	$(assert_windows_interop); \
-	$(VAGRANT_PS) "Set-Location '$(VM_DIR_WIN)'; vagrant ssh -c \"if [ -x '$(PROVISION_SCRIPT)' ]; then bash '$(PROVISION_SCRIPT)'; else echo 'Provision script not found or not executable: $(PROVISION_SCRIPT)'; exit 1; fi\""
-
-bringup: check-tools up
-
-rebuild: destroy up
-
-halt:
-	@set -euo pipefail; \
-	$(assert_windows_interop); \
-	$(VAGRANT_PS) "Set-Location '$(VM_DIR_WIN)'; vagrant halt"
-
-destroy:
-	@set -euo pipefail; \
-	$(assert_windows_interop); \
-	$(VAGRANT_PS) "Set-Location '$(VM_DIR_WIN)'; vagrant destroy -f"
+vm-info-all: $(addprefix vm-info-,$(VM_ALIASES))
 
 clean:
 	@echo "Nothing to clean."
