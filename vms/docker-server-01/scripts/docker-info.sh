@@ -129,10 +129,16 @@ main() {
 
   local daemon_status="FAIL"
   local daemon_summary="docker info unavailable"
+  local daemon_access_mode="none"
   if [[ "${docker_cmd_status}" == "PASS" ]]; then
     if docker info >/dev/null 2>&1; then
       daemon_status="PASS"
+      daemon_access_mode="user"
       daemon_summary="$(docker info --format 'Server={{.ServerVersion}}, Driver={{.Driver}}, Cgroup={{.CgroupDriver}}/{{.CgroupVersion}}, Containers={{.Containers}} (running={{.ContainersRunning}} paused={{.ContainersPaused}} stopped={{.ContainersStopped}}), Logging={{.LoggingDriver}}' 2>/dev/null || echo 'daemon reachable')"
+    elif sudo -n docker info >/dev/null 2>&1; then
+      daemon_status="PASS"
+      daemon_access_mode="sudo"
+      daemon_summary="$(sudo -n docker info --format 'Server={{.ServerVersion}}, Driver={{.Driver}}, Cgroup={{.CgroupDriver}}/{{.CgroupVersion}}, Containers={{.Containers}} (running={{.ContainersRunning}} paused={{.ContainersPaused}} stopped={{.ContainersStopped}}), Logging={{.LoggingDriver}}' 2>/dev/null || echo 'daemon reachable via sudo'); current session cannot access docker without sudo"
     fi
   fi
 
@@ -180,22 +186,29 @@ main() {
     "groups=$(id -nG "${user_name}")"
 
   local user_access_status="FAIL"
+  local user_access_details="checked as user ${user_name}"
   if docker ps >/dev/null 2>&1; then
     user_access_status="PASS"
+  elif [[ "${daemon_access_mode}" == "sudo" ]] && id -nG "${user_name}" | grep -qw docker; then
+    user_access_status="WARN"
+    user_access_details="checked as user ${user_name}; docker group present but current login session has not refreshed group membership yet"
   fi
   report_item \
     "User-Level Docker Access" \
     "docker ps works without sudo" \
     "${user_access_status}" \
-    "checked as user ${user_name}"
+    "${user_access_details}"
 
   local runtime_status="WARN"
   local runtime_details="runtime test skipped"
-  if [[ "${daemon_status}" == "PASS" && "${user_access_status}" == "PASS" ]]; then
+  if [[ "${daemon_status}" == "PASS" && ( "${user_access_status}" == "PASS" || "${daemon_access_mode}" == "sudo" ) ]]; then
     if docker image inspect hello-world >/dev/null 2>&1; then
       if docker run --rm --pull=never hello-world >/dev/null 2>&1; then
         runtime_status="PASS"
         runtime_details="hello-world ran with --pull=never"
+      elif [[ "${daemon_access_mode}" == "sudo" ]] && sudo -n docker run --rm --pull=never hello-world >/dev/null 2>&1; then
+        runtime_status="WARN"
+        runtime_details="hello-world ran via sudo; current session still lacks direct docker access"
       else
         runtime_status="FAIL"
         runtime_details="hello-world image exists but container execution failed"
