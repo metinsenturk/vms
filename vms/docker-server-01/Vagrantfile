@@ -1,0 +1,21 @@
+Vagrant.configure("2") do |config|
+  config.vm.define "docker-server-01" do |vm|
+    vm.vm.box = "generic/ubuntu2204"
+    vm.vm.hostname = "docker-server-01"
+
+    vm.vm.network "public_network", bridge: "External Virtual Switch"
+
+    vm.vm.provider "hyperv" do |h|
+      h.vmname = "docker-server-01"
+      h.cpus = 2
+      h.memory = 2048
+      h.linked_clone = true
+    end
+
+    vm.vm.provision "install-docker",
+      type: "shell",
+      path: "scripts/install-docker.sh",
+      privileged: false,
+      run: "once"
+  end
+end
