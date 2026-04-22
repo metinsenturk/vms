@@ -1,0 +1,21 @@
+Vagrant.configure("2") do |config|
+  config.vm.define "base-server-01" do |vm|
+    vm.vm.box = "generic/ubuntu2204"
+    vm.vm.hostname = "base-server-01"
+
+    vm.vm.network "public_network", bridge: "External Virtual Switch"
+
+    vm.vm.provider "hyperv" do |h|
+      h.vmname = "base-server-01"
+      h.cpus = 2
+      h.memory = 2048
+      h.linked_clone = true
+    end
+
+    vm.vm.provision "vm-info",
+      type: "shell",
+      path: "scripts/vm-info.sh",
+      privileged: false,
+      run: "always"
+  end
+end
