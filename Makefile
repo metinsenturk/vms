@@ -7,6 +7,7 @@ SHELL := /usr/bin/env bash
 # Supported model: run make from WSL and drive Hyper-V Vagrant via Windows PowerShell.
 VAGRANT_PS := powershell.exe -NoProfile -Command
 PROVIDER ?= hyperv
+ROOT_DIR_WIN := $(shell wslpath -w "$(CURDIR)")
 
 # Friendly aliases used in targets (up-hub, up-docker, up-base)
 VM_ALIASES := base docker hub
@@ -137,7 +138,7 @@ check-tools:
 	echo "Tools check passed."
 
 define vm_dir
-d:\vm-home\vms\$(VM_NAME_$(1))
+$(ROOT_DIR_WIN)\vms\$(VM_NAME_$(1))
 endef
 
 define run_vagrant
