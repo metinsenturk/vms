@@ -37,5 +37,3 @@ make ssh
 make halt
 make destroy
 ```
-
-See `docs/runbooks/day-1-bringup.md` for detailed flow.
