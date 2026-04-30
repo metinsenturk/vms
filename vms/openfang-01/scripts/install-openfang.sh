@@ -3,7 +3,7 @@ set -euo pipefail
 
 MARKER="/var/tmp/openfang-install.ok"
 SERVICE_FILE="/etc/systemd/system/openfang.service"
-OPENFANG_BIN="$HOME/.local/bin/openfang"
+OPENFANG_BIN="$HOME/.openfang/bin/openfang"
 
 # Idempotency guard
 if [ -f "$MARKER" ]; then
