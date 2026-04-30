@@ -2,6 +2,8 @@
 
 A Windows-native Hyper-V lab managed with Vagrant. Each VM lives in its own folder under `vms/` with a dedicated `Vagrantfile` and provisioning scripts.
 
+> 📖 New to Vagrant? Read the article: [The Magic of Vagrant — Automating My Home Lab with Infrastructure as Code](https://metinsenturk.me/the-magic-of-vagrant-automating-my-home-lab-with-infrastructure-as-code)
+
 ## Structure
 
 ```
