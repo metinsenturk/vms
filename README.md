@@ -70,6 +70,7 @@ tasks.cmd halt all
 | `hub` | `hub-01` | Main control node |
 | `base` | `base-server-01` | Base server template |
 | `docker` | `docker-server-01` | Docker host |
+| `ubuntu` | `my-ubuntu-box` | Ubuntu sandbox |
 
 ### Option 2 — `vagrant` from a VM folder
 
@@ -96,6 +97,7 @@ $VM_ALIASES = @{
     'hub'    = 'hub-01'
     'base'   = 'base-server-01'
     'docker' = 'docker-server-01'
+    'ubuntu' = 'my-ubuntu-box'
     'new'    = 'new-vm-01'        # add this line
 }
 ```

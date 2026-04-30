@@ -40,6 +40,7 @@ $VM_ALIASES = @{
     'hub'    = 'hub-01'
     'base'   = 'base-server-01'
     'docker' = 'docker-server-01'
+    'ubuntu' = 'my-ubuntu-box'
 }
 
 # Get all valid alias names
