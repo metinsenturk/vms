@@ -14,7 +14,7 @@ vms/
 
 ## Prerequisites
 
-1. **Vagrant** installed on Windows — https://developer.hashicorp.com/vagrant/install
+1. **Vagrant** — install with `winget install HashiCorp.Vagrant`
 2. **Hyper-V** enabled
 3. **PowerShell 3.0+** (included with Windows)
 
@@ -112,7 +112,7 @@ $VM_ALIASES = @{
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ```
 
-**`vagrant` not found:** ensure Vagrant is installed and on your Windows `PATH`.
+**`vagrant` not found:** install with `winget install HashiCorp.Vagrant`, then restart your terminal.
 
 **General diagnostics:**
 

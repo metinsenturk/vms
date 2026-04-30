@@ -149,7 +149,7 @@ function Test-Prerequisites {
     # Test Vagrant
     $vagrantExe = Get-Command 'vagrant' -ErrorAction SilentlyContinue
     if (-not $vagrantExe) {
-        Write-Error "[FAIL] Vagrant not found. Install from https://developer.hashicorp.com/vagrant/install"
+        Write-Error "[FAIL] Vagrant not found. Install with: winget install HashiCorp.Vagrant"
         exit 1
     }
     $vagrantVersion = (& vagrant --version 2>&1) | Select-Object -First 1
