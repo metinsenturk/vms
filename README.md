@@ -9,27 +9,24 @@ Supported execution model:
 
 ## Structure
 
-- `vms/<name>/Vagrantfile`: VM-specific orchestration.
-- `.env`: shared environment values.
-- `vms/<name>/.env`: optional per-VM overrides.
+- `vms/<name>/Vagrantfile`: VM-specific orchestration. All configuration (memory, CPU, switch name) is hardcoded here.
 
 ## Day 1 Quickstart
 
-1. Review `.env` and update values for your host if required.
-2. Optional: add overrides in `vms/hub-01/.env`.
-3. From repository root in WSL, run:
+1. Review `vms/<name>/Vagrantfile` and update hardware values for your host if required.
+2. From repository root in WSL, run:
 
 ```bash
 make bringup
 ```
 
-4. Run script provisioning:
+3. Run script provisioning:
 
 ```bash
 make provision
 ```
 
-5. Useful lifecycle commands:
+4. Useful lifecycle commands:
 
 ```bash
 make status

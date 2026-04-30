@@ -8,7 +8,7 @@
 #
 # EXPORTED GLOBALS (after lib_init):
 #   SSH_OPTS   - SSH flags for all remote calls (key auth, no host checking)
-#   SERVER_IP  - Remote VM IP loaded from .env
+#   SERVER_IP  - Remote VM IP (must be exported by the caller before sourcing)
 #   SSH_CMD    - Full SSH command prefix for the vagrant user
 # ==============================================================================
 
@@ -28,35 +28,22 @@ require_command() {
     fi
 }
 
-read_env_value() {
-    local env_file="$1"
-    local key="$2"
-
-    awk -F= -v target="$key" '
-        $0 !~ /^[[:space:]]*#/ && $1 == target {
-            sub(/^[^=]*=/, "", $0)
-            print $0
-            exit
-        }
-    ' "$env_file"
-}
-
 # ==============================================================================
 # lib_init
-# Sets up the SSH key, loads .env, and exports SSH_OPTS / SERVER_IP / SSH_CMD.
-#
-# Arguments:
-#   $1 - Absolute path to the project root (parent of scripts/)
+# Sets up the SSH key and exports SSH_OPTS / SSH_CMD.
+# SERVER_IP must be exported by the caller before invoking this function.
 # ==============================================================================
 lib_init() {
-    local project_root="$1"
-    local env_file="$project_root/.env"
     local key_src="/mnt/d/vm-home/vms/hub-01/.vagrant/machines/hub-01/hyperv/private_key"
 
     require_command docker
     require_command ssh
     require_command cp
-    require_command awk
+
+    if [[ -z "${SERVER_IP:-}" ]]; then
+        echo "❌ Error: SERVER_IP is not set. Export it before calling lib_init." >&2
+        return 1
+    fi
 
     # Ensure the secure key directory exists
     mkdir -p "$HOME/.ssh/keys"
@@ -70,19 +57,6 @@ lib_init() {
     cp "$key_src" "$_DEFAULT_KEY"
     chmod 600 "$_DEFAULT_KEY"
 
-    if [[ ! -f "$env_file" ]]; then
-        echo "❌ Error: .env not found at $env_file" >&2
-        return 1
-    fi
-
-    SERVER_IP="$(read_env_value "$env_file" "SERVER_IP" | tr -d '\r')"
-
-    if [[ -z "${SERVER_IP:-}" ]]; then
-        echo "❌ Error: SERVER_IP not defined in $env_file" >&2
-        return 1
-    fi
-
-    export SERVER_IP
     export SSH_OPTS="-i $_DEFAULT_KEY -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     export SSH_CMD="ssh $SSH_OPTS vagrant@$SERVER_IP"
 }

@@ -54,18 +54,14 @@ REM Use the batch wrapper
 | `base` | `base-server-01` | Base server template |
 | `docker` | `docker-server-01` | Docker host |
 
-## Environment Variables
+## Configuration
 
-The script automatically loads `.env` file in the same directory. Key variables:
+All VM configuration (memory, CPUs, switch name, MAC address) is hardcoded in the respective `vms/<name>/Vagrantfile`. Edit the Vagrantfile directly to adjust hardware settings for your host.
 
-```bash
-# Hyper-V configuration
-HYPERV_SWITCH_NAME=External Virtual Switch
-HYPERV_MEMORY=2048
-HYPERV_CPUS=2
+To override the Vagrant provider at runtime, set the `PROVIDER` environment variable in your shell before invoking `tasks.ps1` or `make`:
 
-# VM defaults
-UBUNTU_BOX=generic/ubuntu2204
+```powershell
+$env:PROVIDER = 'hyperv'
 ```
 
 ## Prerequisites
@@ -98,7 +94,7 @@ Check with: `.\tasks.ps1 check-tools`
 - **PowerShell instead of Bash** - leverages native Windows capabilities  
 - **Simplified workflow** - no more `powershell.exe -Command` wrappers
 - **Better error handling** - PowerShell's structured exception handling
-- **Native .env loading** - no external dependencies
+- **No .env file** - all configuration is in Vagrantfiles
 
 ### What Stayed the Same
 - VM directory structure (`vms\<vm-name>\`)
@@ -141,7 +137,7 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 ### Performance Tips
 
 - Use `.\tasks.ps1 up all` to start multiple VMs in sequence
-- Set `HYPERV_MEMORY` in `.env` to optimize RAM allocation
+- Adjust `h.memory` in the Vagrantfile to optimize RAM allocation
 - Use `.\tasks.ps1 ssh hub "command"` for quick remote commands
 
 ## Examples

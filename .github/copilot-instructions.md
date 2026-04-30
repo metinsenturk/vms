@@ -67,6 +67,6 @@ Provisioning should be handled via `vagrant ssh -c` or direct SSH commands to en
     ```ruby
     config.vm.network "public_network", bridge: "External Virtual Switch"
     ```
-* **Switch Variable**: The bridge name must be provided via the $HYPERV_SWITCH_NAME environment variable.
+* **Switch Variable**: The bridge name is hardcoded in each Vagrantfile as `"External Virtual Switch"`. Update it directly in the Vagrantfile if your switch name differs.
 * **Deterministic MAC Addresses:** To ensure your router's DHCP reservation never breaks, hardcode a MAC address starting with the Hyper-V prefix `00155D`.
     * *Rule:* Use `00155D` + 6 unique hex characters

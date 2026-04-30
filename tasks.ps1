@@ -3,9 +3,8 @@
 .SYNOPSIS
     Windows-native VM automation for Vagrant + Hyper-V
 .DESCRIPTION
-    Replacement for Make-based workflow. Supports VM aliases, .env loading,
-    and all standard Vagrant operations. Run from D:\vm-home in any PowerShell
-    session - no WSL required.
+    Replacement for Make-based workflow. Supports VM aliases and all standard
+    Vagrant operations. Run from D:\vm-home in any PowerShell session - no WSL required.
 .PARAMETER Command
     The command to run: up, halt, ssh, status, provision, destroy, vm-info,
     check-tools, doctor, help
@@ -46,23 +45,7 @@ $VM_ALIASES = @{
 # Get all valid alias names
 $VALID_ALIASES = @($VM_ALIASES.Keys) + @('all')
 
-# Load environment variables from .env file
-function Load-EnvFile {
-    $envFile = Join-Path $PSScriptRoot '.env'
-    if (Test-Path $envFile) {
-        Write-Verbose "Loading environment from $envFile"
-        Get-Content $envFile | Where-Object { $_ -match '^[A-Z_]+=.+' } | ForEach-Object {
-            if ($_ -match '^([^=]+)=(.*)$') {
-                $name = $matches[1]
-                $value = $matches[2].Trim('"').Trim("'")
-                [Environment]::SetEnvironmentVariable($name, $value, 'Process')
-                Write-Verbose "Set $name=$value"
-            }
-        }
-    } else {
-        Write-Warning ".env file not found at $envFile"
-    }
-}
+
 
 # Validate VM alias
 function Assert-ValidVM {
@@ -218,8 +201,8 @@ EXAMPLES:
     .\tasks.ps1 status base               # Check base-server-01 status
 
 ENVIRONMENT:
-    Loads variables from .env file in script directory.
-    Key variables: HYPERV_SWITCH_NAME, VM_MEMORY, VM_CPUS
+    All configuration is hardcoded in the respective Vagrantfile under vms\<name>\.
+    To override the Vagrant provider, set the PROVIDER environment variable in your shell.
 
 "@ -ForegroundColor White
 }
@@ -228,18 +211,9 @@ ENVIRONMENT:
 function Test-Doctor {
     Write-Host "=== VM Automation Diagnostics ===" -ForegroundColor Yellow
     
-    # Check current directory and .env
+    # Check current directory and VM dirs
     Write-Host "`nEnvironment:" -ForegroundColor White
     Write-Host "  Script location: $PSScriptRoot"
-    
-    $envFile = Join-Path $PSScriptRoot '.env'
-    if (Test-Path $envFile) {
-        Write-Host "  .env file: Found" -ForegroundColor Green
-        $envVars = Get-Content $envFile | Where-Object { $_ -match '^[A-Z_]+=.+' }
-        Write-Host "  .env variables: $($envVars.Count) found"
-    } else {
-        Write-Host "  .env file: Missing" -ForegroundColor Red
-    }
     
     # Check VM directories
     Write-Host "`nVM Directories:" -ForegroundColor White
@@ -268,9 +242,7 @@ function Test-Doctor {
 # Main execution
 try {
     # Load environment variables
-    Load-EnvFile
-
-    # Resolve provider (from .env PROVIDER or default to hyperv)
+    # Resolve provider (from shell env PROVIDER or default to hyperv)
     $provider = if ($env:PROVIDER) { $env:PROVIDER } else { 'hyperv' }
 
     switch ($Command) {

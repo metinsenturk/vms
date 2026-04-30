@@ -15,12 +15,6 @@ VM_NAME_base := base-server-01
 VM_NAME_docker := docker-server-01
 VM_NAME_hub := hub-01
 
-# Load variables from .env file
-ifneq (,$(wildcard ./.env))
-    include .env
-    export
-endif
-
 define assert_windows_interop
 	if ! command -v cmd.exe >/dev/null 2>&1; then \
 		echo "ERROR: cmd.exe not found from WSL."; \
@@ -211,6 +205,8 @@ vm-info-all: $(addprefix vm-info-,$(VM_ALIASES))
 
 clean:
 	@echo "Nothing to clean."
+
+SERVER_IP ?= 192.168.1.138
 
 verify-dns:
 	@echo "Checking if Windows hosts file is blocking hub.local..."

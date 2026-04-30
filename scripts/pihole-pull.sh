@@ -8,7 +8,6 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # shellcheck source=lib/volume-lib.sh
 source "$SCRIPT_DIR/lib/volume-lib.sh"
@@ -17,7 +16,8 @@ readonly VOLUMES=(
     "home_pihole_data"
 )
 
-lib_init "$PROJECT_ROOT"
+# SERVER_IP must be exported by the caller (e.g. export SERVER_IP=192.168.1.138)
+lib_init
 
 echo "🚀 Pi-hole pull ← $SERVER_IP"
 
