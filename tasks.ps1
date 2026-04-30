@@ -37,10 +37,11 @@ param(
 
 # VM alias mapping - add new VMs here
 $VM_ALIASES = @{
-    'hub'    = 'hub-01'
-    'base'   = 'base-server-01'
-    'docker' = 'docker-server-01'
-    'ubuntu' = 'my-ubuntu-box'
+    'hub'      = 'hub-01'
+    'base'     = 'base-server-01'
+    'docker'   = 'docker-server-01'
+    'ubuntu'   = 'my-ubuntu-box'
+    'openfang' = 'openfang-01'
 }
 
 # Get all valid alias names
