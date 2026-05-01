@@ -35,17 +35,29 @@ if (-not (Test-Path $vmPath)) {
 # 3. Execution Logic
 function Invoke-TargetCommand {
     param([string]$CommandStr)
-    
+
+    # 1. Logic: Only check status if we aren't trying to 'up' the VM
+    if ($CommandStr -notmatch "vagrant up") {
+        Push-Location $vmPath
+        # Get the status quietly. 'running' is what we usually want.
+        $status = (vagrant status --machine-readable | Select-String ",state,(\w+)" | ForEach-Object { $_.Matches.Groups[1].Value })
+        Pop-Location
+
+        if ($status -ne "running" -and $CommandStr -match "ssh|provision|halt") {
+            Write-Host "[!] Warning: $Target is currently '$status'. This command might fail." -ForegroundColor Yellow
+        }
+    }
+
+    # 2. Proceed with execution
     Write-Host "`n[Target: $Target] Executing: $CommandStr" -ForegroundColor Cyan
     
     Push-Location $vmPath
-    # Using Invoke-Expression to handle the full string including 'vagrant'
     Invoke-Expression $CommandStr
     $exitCode = $LASTEXITCODE
     Pop-Location
     
     if ($exitCode -ne 0) {
-        Write-Warning "Command failed with exit code $exitCode"
+        Write-Host "X Command failed on $Target (Exit Code: $exitCode)" -ForegroundColor Red
     }
 }
 
