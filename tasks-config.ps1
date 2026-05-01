@@ -1,3 +1,20 @@
+<#
+.SYNOPSIS
+    Vagrant Lab Manifest - Configuration data for the Proxy Engine.
+
+.DESCRIPTION
+    This file contains the "Source of Truth" for the lab environment. It is divided 
+    into two main hash tables:
+    
+    $VM_CONFIGS: Maps human-readable aliases to physical file system paths.[cite: 8]
+    $RECIPES: Defines sequences of commands (recipes) that the Engine can execute.[cite: 8]
+
+.NOTES
+    - When adding new Recipes, ensure sub-commands that use variables (like `$(hostname)`) 
+      use the backtick (`) to escape the dollar sign so it executes inside the VM.[cite: 8]
+    - Paths are resolved relative to the script root ($PSScriptRoot).[cite: 8]
+#>
+
 # VM Inventory: Map aliases to their real folders and add metadata
 $VM_CONFIGS = @{
     'hub'    = @{ 

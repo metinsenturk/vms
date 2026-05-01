@@ -2,11 +2,36 @@
 <#
 .SYNOPSIS
     Vagrant Lab Proxy Engine - A centralized task runner for multi-VM environments.
-    
+
 .DESCRIPTION
-    This script acts as an "Engine" that separates infrastructure data (config) 
-    from execution logic. It supports native Vagrant command proxying and 
-    custom multi-step sequences called "Recipes."
+    This script acts as an orchestration "Engine" that separates infrastructure data 
+    from execution logic. It provides a single entry point to manage multiple Vagrant VMs.
+    
+    Key Features:
+    1. Single-Check: Verifies VM status once at start-up to reduce wait times.[cite: 7]
+    2. Fail-Fast: Aborts recipe execution immediately if any step returns a non-zero exit code.[cite: 7]
+    3. Proxying: Passes any non-recipe command (and extra arguments) directly to Vagrant.[cite: 7]
+
+.PARAMETER Target
+    The VM alias defined in tasks-config.ps1 (e.g., 'hub', 'docker').[cite: 7]
+
+.PARAMETER Action
+    The specific recipe name to run (e.g., 'audit') or a native Vagrant command (e.g., 'up', 'ssh').[cite: 7]
+
+.PARAMETER ExtraArgs
+    Additional flags passed directly to the Vagrant executable (e.g., '--provider', '--force').[cite: 7]
+
+.EXAMPLE
+    .\tasks.ps1 hub audit
+    Runs the 'audit' recipe for the hub VM, including disk checks and uptime.
+
+.EXAMPLE
+    .\tasks.ps1 docker up --provider hyperv
+    Proxies the 'up' command to Vagrant for the docker VM with the Hyper-V provider flag.
+
+.EXAMPLE
+    .\tasks.ps1 base say-hello
+    Runs the SSH-based greeting recipe on the base server.
 #>
 [CmdletBinding()]
 param(
