@@ -40,5 +40,17 @@ Vagrant.configure("2") do |config|
       path: "scripts/setup-nginx.sh",
       privileged: false,
       run: "once"
+
+    vm.vm.provision "install-ollama",
+      type: "shell",
+      path: "scripts/install-ollama.sh",
+      privileged: false,
+      run: "once"
+
+    vm.vm.provision "pull-model",
+      type: "shell",
+      path: "scripts/pull-model.sh",
+      privileged: false,
+      run: "once"
   end
 end
