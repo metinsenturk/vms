@@ -36,19 +36,6 @@ if (-not (Test-Path $vmPath)) {
 function Invoke-TargetCommand {
     param([string]$CommandStr)
 
-    # 1. Logic: Only check status if we aren't trying to 'up' the VM
-    if ($CommandStr -notmatch "vagrant up") {
-        Push-Location $vmPath
-        # Get the status quietly. 'running' is what we usually want.
-        $status = (vagrant status --machine-readable | Select-String ",state,(\w+)" | ForEach-Object { $_.Matches.Groups[1].Value })
-        Pop-Location
-
-        if ($status -ne "running" -and $CommandStr -match "ssh|provision|halt") {
-            Write-Host "[!] Warning: $Target is currently '$status'. This command might fail." -ForegroundColor Yellow
-        }
-    }
-
-    # 2. Proceed with execution
     Write-Host "`n[Target: $Target] Executing: $CommandStr" -ForegroundColor Cyan
     
     Push-Location $vmPath
@@ -59,14 +46,39 @@ function Invoke-TargetCommand {
     if ($exitCode -ne 0) {
         Write-Host "X Command failed on $Target (Exit Code: $exitCode)" -ForegroundColor Red
     }
+    
+    return $exitCode # Crucial for Fail-Fast logic
 }
 
 # 4. Resolve Action (Recipe vs. Proxy)
+
+# --- SINGLE-CHECK LOGIC ---
+# Check status once before doing anything, unless we are explicitly running 'up' or 'status'
+if ($Action -notmatch "up|status") {
+    Push-Location $vmPath
+    $rawStatus = (vagrant status --machine-readable | Select-String ",state,(\w+)" | ForEach-Object { $_.Matches.Groups[1].Value })
+    $status = $rawStatus -replace '_', ' '
+    Pop-Location
+
+    if ($status -ne "running") {
+        Write-Host "[!] Warning: $Target is currently '$status'. Commands requiring SSH or Provisioning may fail." -ForegroundColor Yellow
+    } else {
+        Write-Host "[$Target is running]" -ForegroundColor Green
+    }
+}
+
 if ($RECIPES.ContainsKey($Action)) {
     # It's a Recipe: Run the sequence of commands
     Write-Host "--- Running Recipe: $Action ---" -ForegroundColor Yellow
+    
     foreach ($cmd in $RECIPES[$Action]) {
-        Invoke-TargetCommand -CommandStr $cmd
+        $result = Invoke-TargetCommand -CommandStr $cmd
+        
+        # --- FAIL-FAST LOGIC ---
+        if ($result -ne 0) {
+            Write-Host "`n[!] Recipe Aborted: A command in the sequence failed." -ForegroundColor Red
+            break
+        }
     }
 } else {
     # It's a Proxy: Pass directly to Vagrant with extra arguments
