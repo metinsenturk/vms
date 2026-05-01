@@ -84,6 +84,11 @@ function Invoke-TargetCommand {
     return [int]$localExitCode
 }
 
+# --- START LOG ---
+$StartTime = Get-Date -Format "HH:mm:ss"
+Write-Host "[Task Started at $StartTime]" -ForegroundColor Gray
+Write-Host "[Processing $Action for $Target... please wait]" -ForegroundColor Cyan
+
 # --- 4. SINGLE-CHECK LOGIC ---
 <# 
 Pre-execution health check: We check the VM status once at the start of the script.
@@ -132,3 +137,7 @@ else {
     $fullArgs = if ($ExtraArgs) { "$Action $($ExtraArgs -join ' ')" } else { $Action }
     Invoke-TargetCommand -CommandStr "vagrant $fullArgs"
 }
+
+# --- END LOG ---
+$EndTime = Get-Date -Format "HH:mm:ss"
+Write-Host "`n[Task Finished at $EndTime]" -ForegroundColor Gray
