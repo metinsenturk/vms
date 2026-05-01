@@ -52,5 +52,17 @@ Vagrant.configure("2") do |config|
       path: "scripts/pull-model.sh",
       privileged: false,
       run: "once"
+
+    vm.vm.provision "status-openfang",
+      type: "shell",
+      path: "scripts/status-openfang.sh",
+      privileged: false,
+      run: "always"
+
+    vm.vm.provision "status-ollama",
+      type: "shell",
+      path: "scripts/status-ollama.sh",
+      privileged: false,
+      run: "always"
   end
 end
