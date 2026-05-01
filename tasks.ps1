@@ -10,13 +10,13 @@
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Position=0, Mandatory=$true)]
+    [Parameter(Position = 0, Mandatory = $true)]
     [string]$Target, # The VM alias defined in tasks-config.ps1 (e.g., 'hub')
 
-    [Parameter(Position=1, Mandatory=$true)]
+    [Parameter(Position = 1, Mandatory = $true)]
     [string]$Action, # The command to run (e.g., 'up') or a recipe name (e.g., 'audit')
 
-    [Parameter(Position=2, ValueFromRemainingArguments=$true)]
+    [Parameter(Position = 2, ValueFromRemainingArguments = $true)]
     [string[]]$ExtraArgs = @() # Captures any additional flags like --provider or -f
 )
 
@@ -26,7 +26,8 @@ param(
 $configFile = Join-Path $PSScriptRoot "tasks-config.ps1"
 if (Test-Path $configFile) {
     . $configFile
-} else {
+}
+else {
     Write-Error "Configuration file not found: tasks-config.ps1"
     exit 1
 }
@@ -54,19 +55,33 @@ function Invoke-TargetCommand {
     param([string]$CommandStr)
 
     Write-Host "`n[Target: $Target] Executing: $CommandStr" -ForegroundColor Cyan
-    
-    # Push-Location saves our current spot (root) before we enter the VM folder.[cite: 2]
-    Push-Location $vmPath
-    Invoke-Expression $CommandStr
-    $exitCode = $LASTEXITCODE # Capture the result of the command (0 = success).[cite: 2]
-    Pop-Location # Immediately return to the root folder.[cite: 2]
-    
-    if ($exitCode -ne 0) {
-        Write-Host "X Command failed on $Target (Exit Code: $exitCode)" -ForegroundColor Red
+
+    $localExitCode = 0
+    $null = Push-Location $vmPath
+
+    try {
+        # Use PowerShell parsing so quoted subcommands (for example vagrant ssh -c '...')
+        # are preserved correctly and only the numeric exit code is returned.
+        Invoke-Expression $CommandStr | ForEach-Object { Write-Host $_ }
+        $localExitCode = $LASTEXITCODE
     }
-    
-    # Return the exit code to the caller. This is the foundation for Fail-Fast.[cite: 2]
-    return $exitCode 
+    finally {
+        $null = Pop-Location
+    }
+
+    # Debugging: Uncomment the line below to see the raw exit code from the command execution.
+    # Write-Host "[Debug] Raw Exit Code: $localExitCode" -ForegroundColor Gray
+
+    # Standardize the exit code
+    if ($null -eq $localExitCode) {
+        $localExitCode = 0
+    }
+
+    if ($localExitCode -ne 0) {
+        Write-Host "X Command failed on $Target (Exit Code: $localExitCode)" -ForegroundColor Red
+    }
+
+    return [int]$localExitCode
 }
 
 # --- 4. SINGLE-CHECK LOGIC ---
@@ -84,7 +99,8 @@ if ($Action -notmatch "up|status") {
 
     if ($status -ne "running") {
         Write-Host "[!] Warning: $Target is currently '$status'. Commands requiring SSH or Provisioning may fail." -ForegroundColor Yellow
-    } else {
+    }
+    else {
         Write-Host "[$Target is running]" -ForegroundColor Green
     }
 }
@@ -98,7 +114,8 @@ if ($RECIPES.ContainsKey($Action)) {
     Write-Host "--- Running Recipe: $Action ---" -ForegroundColor Yellow
     
     foreach ($cmd in $RECIPES[$Action]) {
-        $result = Invoke-TargetCommand -CommandStr $cmd
+        # Force the result to be an Integer
+        [int]$result = Invoke-TargetCommand -CommandStr $cmd
         
         # FAIL-FAST: If a command fails, abort the rest of the recipe to prevent chain-reaction errors.[cite: 2]
         if ($result -ne 0) {
@@ -106,7 +123,8 @@ if ($RECIPES.ContainsKey($Action)) {
             break
         }
     }
-} else {
+}
+else {
     <# 
     PROXY MODE: Directly passes the command through to Vagrant.
     This allows usage like '.\tasks.ps1 hub up --provider=hyperv'[cite: 2]
