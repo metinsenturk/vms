@@ -15,14 +15,11 @@ else
   echo "  binary   : NOT FOUND"
 fi
 
-# systemd service state
-if systemctl list-units --full --all | grep -q "ollama.service"; then
-  SVC_STATUS=$(systemctl is-active ollama 2>/dev/null || true)
-  SVC_ENABLED=$(systemctl is-enabled ollama 2>/dev/null || true)
-  echo "  service  : $SVC_STATUS (enabled: $SVC_ENABLED)"
-else
-  echo "  service  : ollama.service not found"
-fi
+# systemd service state (is-active returns "inactive"/"activating"/"active"/"failed";
+# is-enabled returns "enabled"/"disabled"/"not-found" — reliable regardless of load state)
+SVC_STATUS=$(systemctl is-active ollama 2>/dev/null || true)
+SVC_ENABLED=$(systemctl is-enabled ollama 2>/dev/null || true)
+echo "  service  : ${SVC_STATUS:-unknown} (enabled: ${SVC_ENABLED:-unknown})"
 
 # API reachability
 if curl -sf --max-time 3 http://localhost:11434 > /dev/null 2>&1; then
