@@ -41,6 +41,23 @@ powershell.exe -NoProfile -Command "Set-Location 'D:\vm-home\vms\<vm-folder>'; v
 **Provisioning Pattern:**
 Provisioning should be handled via `vagrant ssh -c` or direct SSH commands to ensure script execution happens inside the guest context.
 
+**Task System Sync Contract (Mandatory):**
+When updating `tasks.ps1` or `tasks-config.ps1`, also update all related files in the same change so docs and wrappers stay consistent.
+
+Required sync rules:
+1. If `tasks-config.ps1` VM aliases or metadata change (`$VM_CONFIGS`):
+    - Update VM inventory and alias documentation in `README.md`.
+    - Update any relevant configuration or behavior notes in `TASKS.md`.
+2. If `tasks-config.ps1` recipes change (`$RECIPES`):
+    - Update recipe documentation/examples in `README.md`.
+    - Update recipe behavior/details in `TASKS.md`.
+3. If `tasks.ps1` internals, command flow, flags, help, doctor checks, or execution behavior change:
+    - Update `TASKS.md` technical guide sections to match implementation.
+    - Update `README.md` usage/help examples if user-facing behavior changed.
+4. If invocation contract/path/wrapper assumptions change for `tasks.ps1`:
+    - Update `tasks.cmd` so argument pass-through and script targeting stay correct.
+5. Do not leave partial updates: when one task-system file changes, verify and sync all impacted companion files before finishing.
+
 ---
 
 ### 📂 Directory Structure
