@@ -134,12 +134,29 @@ Pre-execution health check: We check the VM status once at the start of the scri
 This prevents redundant "VM not running" warnings for every line in a recipe.
 We skip this for 'up' (which starts the VM) and 'status' (which is redundant).[cite: 2]
 #>
-if ($Action -notmatch "up|status") {
-    Push-Location $vmPath
-    # Parse machine-readable output to find the state (e.g., running, poweroff, not_created).[cite: 2]
-    $rawStatus = (vagrant status --machine-readable | Select-String ",state,(\w+)" | ForEach-Object { $_.Matches.Groups[1].Value })
-    $status = $rawStatus -replace '_', ' ' # Make it human-friendly.[cite: 2]
-    Pop-Location
+if ($Action -notin @('up', 'status')) {
+    $rawStatus = $null
+    $status = $null
+
+    try {
+        Push-Location $vmPath
+        # Parse machine-readable output to find the state (e.g., running, poweroff, not_created).[cite: 2]
+        $rawStatus = (vagrant status --machine-readable |
+            Select-String ",state,(\w+)" |
+            ForEach-Object { $_.Matches.Groups[1].Value })
+    }
+    finally {
+        Pop-Location
+    }
+
+    # Select a single explicit state and make it human-friendly.[cite: 2]
+    $status = @($rawStatus | Where-Object { $_ }) | Select-Object -First 1
+    if ($status) {
+        $status = $status -replace '_', ' '
+    }
+    else {
+        $status = 'unknown'
+    }
 
     if ($status -ne "running") {
         Write-Host "[!] Warning: $Target is currently '$status'. Commands requiring SSH or Provisioning may fail." -ForegroundColor Yellow
