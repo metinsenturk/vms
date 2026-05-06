@@ -35,15 +35,61 @@
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Position = 0, Mandatory = $true)]
-    [string]$Target, # The VM alias defined in tasks-config.ps1 (e.g., 'hub')
+    [Parameter(Position = 0, Mandatory = $false)]
+    [string]$Target = '', # The VM alias defined in tasks-config.ps1 (e.g., 'hub')
 
-    [Parameter(Position = 1, Mandatory = $true)]
-    [string]$Action, # The command to run (e.g., 'up') or a recipe name (e.g., 'audit')
+    [Parameter(Position = 1, Mandatory = $false)]
+    [string]$Action = '', # The command to run (e.g., 'up') or a recipe name (e.g., 'audit')
 
     [Parameter(Position = 2, ValueFromRemainingArguments = $true)]
     [string[]]$ExtraArgs = @() # Captures any additional flags like --provider or -f
 )
+
+# --- 0. HELP FUNCTION ---
+function Show-Help {
+    # Load config first so we can list live VMs and recipes
+    $configFile = Join-Path $PSScriptRoot "tasks-config.ps1"
+    if (Test-Path $configFile) { . $configFile }
+
+    Write-Host ""
+    Write-Host "Vagrant Lab Task Runner" -ForegroundColor Cyan
+    Write-Host "Usage: .\tasks.ps1 <target> <action> [extra args]" -ForegroundColor White
+    Write-Host ""
+
+    Write-Host "Available Targets:" -ForegroundColor Yellow
+    foreach ($key in ($VM_CONFIGS.Keys | Sort-Object)) {
+        $desc = $VM_CONFIGS[$key].Desc
+        Write-Host ("  {0,-15} {1}" -f $key, $desc)
+    }
+    Write-Host ""
+
+    Write-Host "Available Recipes:" -ForegroundColor Yellow
+    if ($RECIPES -and $RECIPES.Count -gt 0) {
+        foreach ($key in ($RECIPES.Keys | Sort-Object)) {
+            Write-Host ("  {0}" -f $key)
+        }
+    } else {
+        Write-Host "  (none defined)"
+    }
+    Write-Host ""
+
+    Write-Host "Native Vagrant Commands (proxy mode):" -ForegroundColor Yellow
+    Write-Host "  Any command not listed as a recipe is passed directly to Vagrant."
+    Write-Host "  Examples: up, halt, destroy, ssh, status, reload, provision"
+    Write-Host ""
+
+    Write-Host "Examples:" -ForegroundColor Yellow
+    Write-Host "  .\tasks.ps1 hub audit"
+    Write-Host "  .\tasks.ps1 docker up --provider hyperv"
+    Write-Host "  .\tasks.ps1 base ssh"
+    Write-Host ""
+}
+
+# Show help when no arguments are provided or target is 'help'
+if (-not $Target -or $Target -eq 'help') {
+    Show-Help
+    exit 0
+}
 
 # --- 1. CONFIGURATION LOADING ---
 # This "dot-sources" your manifest file, effectively importing the $VM_CONFIGS 
@@ -68,6 +114,13 @@ if ($null -eq $RECIPES) {
 }
 elseif (-not ($RECIPES -is [hashtable])) {
     Write-Error "Invalid configuration: `$RECIPES must be a hashtable when defined in tasks-config.ps1"
+    exit 1
+}
+
+# Require Action now that we know Target is valid
+if (-not $Action) {
+    Write-Host "Error: <action> is required when <target> is specified." -ForegroundColor Red
+    Write-Host "Run '.\tasks.ps1 help' to see usage." -ForegroundColor Gray
     exit 1
 }
 
