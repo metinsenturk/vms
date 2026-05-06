@@ -78,6 +78,11 @@ function Show-Help {
     Write-Host "  Examples: up, halt, destroy, ssh, status, reload, provision"
     Write-Host ""
 
+    Write-Host "Special Commands:" -ForegroundColor Yellow
+    Write-Host "  .\tasks.ps1 help         Show this help message"
+    Write-Host "  .\tasks.ps1 doctor       Check environment prerequisites and VM health"
+    Write-Host ""
+
     Write-Host "Examples:" -ForegroundColor Yellow
     Write-Host "  .\tasks.ps1 hub audit"
     Write-Host "  .\tasks.ps1 docker up --provider hyperv"
@@ -85,9 +90,109 @@ function Show-Help {
     Write-Host ""
 }
 
+# --- 0b. DOCTOR FUNCTION ---
+$script:doctorIssues = 0
+
+function Write-Check {
+    param([string]$Label, [string]$Status, [string]$Detail = '')
+    $padded = "{0,-30}" -f $Label
+    switch ($Status) {
+        'OK'   { Write-Host "  [OK]   $padded $Detail" -ForegroundColor Green }
+        'WARN' { Write-Host "  [WARN] $padded $Detail" -ForegroundColor Yellow; $script:doctorIssues++ }
+        'FAIL' { Write-Host "  [FAIL] $padded $Detail" -ForegroundColor Red;    $script:doctorIssues++ }
+    }
+}
+
+function Show-Doctor {
+    $script:doctorIssues = 0
+
+    Write-Host ""
+    Write-Host "Doctor Report" -ForegroundColor Cyan
+    Write-Host ("-" * 50)
+
+    # --- Session ---
+    Write-Host "`nSession:" -ForegroundColor Yellow
+    $currentPrincipal = New-Object Security.Principal.WindowsPrincipal(
+        [Security.Principal.WindowsIdentity]::GetCurrent()
+    )
+    $isAdmin = $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    if ($isAdmin) {
+        Write-Check "Running as Administrator" "OK" "Hyper-V operations permitted"
+    } else {
+        Write-Check "Running as Administrator" "FAIL" "Re-launch terminal as Administrator for Hyper-V"
+    }
+
+    # --- Tools ---
+    Write-Host "`nTools:" -ForegroundColor Yellow
+
+    # vagrant
+    if (Get-Command vagrant -ErrorAction SilentlyContinue) {
+        $vagrantVersion = (& vagrant --version) -replace 'Vagrant ', ''
+        Write-Check "vagrant" "OK" $vagrantVersion
+    } else {
+        Write-Check "vagrant" "FAIL" "Not found on PATH -- install from https://www.vagrantup.com"
+    }
+
+    # git
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        $gitVersion = (& git --version) -replace 'git version ', ''
+        Write-Check "git" "OK" $gitVersion
+    } else {
+        Write-Check "git" "WARN" "Not found on PATH -- needed for repo management"
+    }
+
+    # ssh (needed for vagrant ssh)
+    if (Get-Command ssh -ErrorAction SilentlyContinue) {
+        $sshVersion = (& ssh -V 2>&1) | Select-Object -First 1
+        Write-Check "ssh" "OK" "$sshVersion"
+    } else {
+        Write-Check "ssh" "WARN" "Not found on PATH -- 'vagrant ssh' will not work"
+    }
+
+    # --- Hyper-V ---
+    Write-Host "`nHyper-V:" -ForegroundColor Yellow
+
+    $vmms = Get-Service -Name vmms -ErrorAction SilentlyContinue
+    if ($null -eq $vmms) {
+        Write-Check "Hyper-V (vmms service)" "FAIL" "Service not found -- Hyper-V may not be enabled"
+    } elseif ($vmms.Status -eq 'Running') {
+        Write-Check "Hyper-V (vmms service)" "OK" "Running"
+    } else {
+        Write-Check "Hyper-V (vmms service)" "WARN" "Service exists but status is '$($vmms.Status)'"
+    }
+
+    $extSwitch = $null
+    try {
+        $extSwitch = Get-VMSwitch -SwitchType External -ErrorAction Stop | Select-Object -First 1
+    } catch {
+        # Hyper-V PowerShell module unavailable or no switch found
+    }
+    if ($extSwitch) {
+        Write-Check "External Virtual Switch" "OK" "$($extSwitch.Name)"
+    } else {
+        Write-Check "External Virtual Switch" "WARN" "None found -- VMs need an External switch for network"
+    }
+
+    # --- Summary ---
+    Write-Host ""
+    Write-Host ("-" * 50)
+    if ($script:doctorIssues -eq 0) {
+        Write-Host "  All checks passed. Environment is ready." -ForegroundColor Green
+    } else {
+        Write-Host "  $($script:doctorIssues) issue(s) found. Review warnings above." -ForegroundColor Yellow
+    }
+    Write-Host ""
+}
+
 # Show help when no arguments are provided or target is 'help'
 if (-not $Target -or $Target -eq 'help') {
     Show-Help
+    exit 0
+}
+
+# Run doctor checks when target is 'doctor'
+if ($Target -eq 'doctor') {
+    Show-Doctor
     exit 0
 }
 
