@@ -161,16 +161,20 @@ function Show-Doctor {
         Write-Check "Hyper-V (vmms service)" "WARN" "Service exists but status is '$($vmms.Status)'"
     }
 
-    $extSwitch = $null
+    $vmSwitches = $null
     try {
-        $extSwitch = Get-VMSwitch -SwitchType External -ErrorAction Stop | Select-Object -First 1
+        $vmSwitches = @(Get-VMSwitch -ErrorAction Stop)
     } catch {
-        # Hyper-V PowerShell module unavailable or no switch found
+        # Hyper-V PowerShell module unavailable or insufficient privileges
     }
-    if ($extSwitch) {
-        Write-Check "External Virtual Switch" "OK" "$($extSwitch.Name)"
+
+    if ($vmSwitches -and $vmSwitches.Count -gt 0) {
+        $switchDetails = $vmSwitches |
+            Sort-Object -Property Name |
+            ForEach-Object { "{0} ({1})" -f $_.Name, $_.SwitchType }
+        Write-Check "Virtual Switches" "OK" ($switchDetails -join ', ')
     } else {
-        Write-Check "External Virtual Switch" "WARN" "None found -- VMs need an External switch for network"
+        Write-Check "Virtual Switches" "WARN" "No Hyper-V virtual switches found"
     }
 
     # --- Summary ---
