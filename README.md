@@ -73,6 +73,7 @@ tasks.cmd halt all
 | `base` | `base-server-01` | Base server template |
 | `docker` | `docker-server-01` | Docker host |
 | `ubuntu` | `my-ubuntu-box` | Ubuntu sandbox |
+| `openfang` | `openfang-01` | OpenFang Agent OS (dashboard on :4200) |
 
 ### Option 2 — `vagrant` from a VM folder
 
@@ -96,11 +97,12 @@ vagrant destroy
 
 ```powershell
 $VM_ALIASES = @{
-    'hub'    = 'hub-01'
-    'base'   = 'base-server-01'
-    'docker' = 'docker-server-01'
-    'ubuntu' = 'my-ubuntu-box'
-    'new'    = 'new-vm-01'        # add this line
+    'hub'      = 'hub-01'
+    'base'     = 'base-server-01'
+    'docker'   = 'docker-server-01'
+    'ubuntu'   = 'my-ubuntu-box'
+    'openfang' = 'openfang-01'
+    'new'      = 'new-vm-01'        # add this line
 }
 ```
 
