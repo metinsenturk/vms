@@ -1,159 +1,186 @@
-# VM Tasks Migration Guide
+# Task Engine Technical Guide
 
-## Overview
+This document describes how the task system works internally and how to extend it safely.
 
-This repository has migrated from Make (WSL-dependent) to **Windows-native PowerShell** for VM automation.
+## 1) Config vs Runner
 
-## Quick Start
+The task system is intentionally split into two files:
 
-### From PowerShell / Windows Terminal:
+- `tasks-config.ps1`: data only (manifest)
+- `tasks.ps1`: execution logic (engine)
+
+### `tasks-config.ps1` responsibilities
+
+- Defines `$VM_CONFIGS`: alias -> metadata map with `Path` and `Desc`
+- Defines `$RECIPES`: recipe name -> ordered command array
+- Contains no orchestration control flow
+
+Example shape:
+
 ```powershell
-# Start a VM
-.\tasks.ps1 up hub
+$VM_CONFIGS = @{
+    'hub' = @{
+        Path = "$PSScriptRoot\vms\hub-01"
+        Desc = "Primary Message Hub & DB"
+    }
+}
 
-# SSH to a VM  
-.\tasks.ps1 ssh hub
-
-# Run command via SSH
-.\tasks.ps1 ssh hub "sudo systemctl status docker"
-
-# Check all VM status
-.\tasks.ps1 status all
-
-# Start all VMs
-.\tasks.ps1 up all
+$RECIPES = @{
+    'cycle' = @(
+        "vagrant halt",
+        "vagrant up"
+    )
+}
 ```
 
-### From CMD:
+### `tasks.ps1` responsibilities
+
+- Parses CLI parameters
+- Loads and validates config shape
+- Resolves target alias to VM folder
+- Runs recipe sequences with fail-fast behavior
+- Proxies non-recipe actions directly to Vagrant
+- Exposes special entry points: `help` and `doctor`
+
+## 2) Recipe Mode vs Direct Vagrant Mode
+
+Invocation format:
+
+```text
+.\tasks.ps1 <target> <action> [extra args]
+```
+
+Where:
+
+- `<target>` is a key in `$VM_CONFIGS`
+- `<action>` is either a recipe key in `$RECIPES` or a native Vagrant subcommand
+
+### Recipe mode
+
+If `<action>` exists in `$RECIPES`, the engine executes each command in order:
+
+```powershell
+.\tasks.ps1 hub audit
+.\tasks.ps1 openfang rebuild
+```
+
+Behavior details:
+
+- each command runs in the resolved VM folder
+- command output is streamed to console
+- first non-zero exit code aborts remaining steps
+
+### Proxy mode
+
+If `<action>` is not a recipe, it is forwarded as a Vagrant command:
+
+```powershell
+.\tasks.ps1 hub up
+.\tasks.ps1 docker status
+.\tasks.ps1 docker up --provider hyperv
+```
+
+Effective command pattern:
+
+```text
+vagrant <action> <extra args>
+```
+
+## 3) Internal Flow of `tasks.ps1`
+
+The engine executes in these phases.
+
+### Phase A: Parameter parsing
+
+Parameters are positional:
+
+- Position 0: `Target`
+- Position 1: `Action`
+- Position 2+: `ExtraArgs` (captured via `ValueFromRemainingArguments`)
+
+Examples:
+
+- `.\tasks.ps1 hub up`
+- `.\tasks.ps1 docker ssh -c "uptime"`
+
+### Phase B: Early exits for special commands
+
+- `help` or empty target -> render usage/targets/recipes
+- `doctor` -> run environment diagnostics and exit
+
+`doctor` checks:
+
+- admin token presence
+- `vagrant`, `git`, `ssh` availability
+- Hyper-V service (`vmms`) state
+- virtual switch visibility
+
+### Phase C: Config loading and validation
+
+The engine dot-sources `tasks-config.ps1`, then validates:
+
+- `$VM_CONFIGS` exists and is a hashtable
+- `$RECIPES` is either missing (defaults to empty hashtable) or a hashtable
+
+This prevents null/method errors at runtime.
+
+### Phase D: Target resolution
+
+- verifies target key exists in `$VM_CONFIGS`
+- resolves VM path from `$VM_CONFIGS[$Target].Path`
+- fails early if path does not exist
+
+### Phase E: Execution wrapper
+
+All execution goes through `Invoke-TargetCommand`:
+
+- `Push-Location` into target VM folder
+- `Invoke-Expression` on composed command
+- capture `$LASTEXITCODE`
+- normalize null to `0`
+- `Pop-Location` in `finally`
+
+This guarantees directory restoration even on failure.
+
+### Phase F: Single status pre-check
+
+For actions other than `up` and `status`, the engine runs one state check using:
+
+```text
+vagrant status --machine-readable
+```
+
+It extracts the state token (`running`, `poweroff`, `not_created`, etc.) and prints a warning if not running.
+
+### Phase G: Action dispatch
+
+- if action is recipe key: iterate commands with fail-fast
+- otherwise: proxy to `vagrant <action> [extra args]`
+
+### Phase H: Task boundary logs
+
+- prints start timestamp
+- prints finish timestamp
+
+## 4) CMD Wrapper
+
+`tasks.cmd` is a thin passthrough to preserve CMD compatibility:
+
 ```cmd
-REM Use the batch wrapper
-.\tasks.cmd up hub
-.\tasks.cmd ssh hub "uptime"
-.\tasks.cmd halt all
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0tasks.ps1" %*
 ```
 
-## Available Commands
+Recommended argument order remains identical:
 
-| Command | Description | Examples |
-|---------|-------------|----------|
-| `up <vm>` | Start VM(s) | `.\tasks.ps1 up hub`<br/>`.\tasks.ps1 up all` |
-| `halt <vm>` | Stop VM(s) | `.\tasks.ps1 halt base`<br/>`.\tasks.ps1 halt all` |
-| `ssh <vm> [cmd]` | SSH to VM, optionally run command | `.\tasks.ps1 ssh hub`<br/>`.\tasks.ps1 ssh hub "uptime"` |
-| `status <vm>` | Show VM status | `.\tasks.ps1 status docker` |
-| `provision <vm>` | Run provisioning | `.\tasks.ps1 provision hub` |
-| `destroy <vm>` | Destroy VM (with confirmation) | `.\tasks.ps1 destroy base` |
-| `help` | Show detailed help | `.\tasks.ps1 help` |
-| `check-tools` | Verify prerequisites | `.\tasks.ps1 check-tools` |
-| `doctor` | Full diagnostics | `.\tasks.ps1 doctor` |
-
-## VM Aliases
-
-| Alias | Full VM Name | Purpose |
-|-------|-------------|---------|
-| `hub` | `hub-01` | Main control node |
-| `base` | `base-server-01` | Base server template |
-| `docker` | `docker-server-01` | Docker host |
-
-## Configuration
-
-All VM configuration (memory, CPUs, switch name, MAC address) is hardcoded in the respective `vms/<name>/Vagrantfile`. Edit the Vagrantfile directly to adjust hardware settings for your host.
-
-To override the Vagrant provider at runtime, set the `PROVIDER` environment variable in your shell before invoking `tasks.ps1` or `make`:
-
-```powershell
-$env:PROVIDER = 'hyperv'
+```cmd
+tasks.cmd hub up
+tasks.cmd docker status
 ```
 
-## Prerequisites
+## 5) Safe Extension Rules
 
-1. **Vagrant** installed on Windows
-2. **Hyper-V** enabled (for VM management)
-3. **PowerShell 3.0+** (included with Windows)
-
-Check with: `.\tasks.ps1 check-tools`
-
-## Adding New VMs
-
-1. **Create VM directory**: `mkdir vms\new-vm-01`
-2. **Add Vagrantfile** in that directory
-3. **Update tasks.ps1**: Add entry to `$VM_ALIASES` hashtable:
-   ```powershell
-   $VM_ALIASES = @{
-       'hub' = 'hub-01'
-       'base' = 'base-server-01'
-       'docker' = 'docker-server-01'
-       'new' = 'new-vm-01'      # Add this line
-   }
-   ```
-4. **Test**: `.\tasks.ps1 up new`
-
-## Migration Notes
-
-### What Changed
-- **No more WSL dependency** - pure Windows tooling
-- **PowerShell instead of Bash** - leverages native Windows capabilities  
-- **Simplified workflow** - no more `powershell.exe -Command` wrappers
-- **Better error handling** - PowerShell's structured exception handling
-- **No .env file** - all configuration is in Vagrantfiles
-
-### What Stayed the Same
-- VM directory structure (`vms\<vm-name>\`)
-- Environment variable names
-- Vagrant commands and workflows
-- Hyper-V provider configuration
-
-### Legacy Makefile
-
-The old `Makefile` is preserved but no longer maintained. If you need WSL compatibility:
-```bash
-# From WSL (legacy approach)
-make up-hub
-make ssh-hub CMD="uptime"
-```
-
-## Troubleshooting
-
-### "Execution Policy" Error
-```powershell
-# If you see execution policy errors, run:
-Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
-```
-
-### "vagrant command not found"
-- Install Vagrant: https://developer.hashicorp.com/vagrant/install
-- Ensure it's in your Windows PATH
-
-### VM Directory Not Found
-```powershell
-# Check VM directories exist:
-.\tasks.ps1 doctor
-
-# Expected structure:
-# vms\hub-01\Vagrantfile
-# vms\base-server-01\Vagrantfile
-# vms\docker-server-01\Vagrantfile
-```
-
-### Performance Tips
-
-- Use `.\tasks.ps1 up all` to start multiple VMs in sequence
-- Adjust `h.memory` in the Vagrantfile to optimize RAM allocation
-- Use `.\tasks.ps1 ssh hub "command"` for quick remote commands
-
-## Examples
-
-```powershell
-# Development workflow
-.\tasks.ps1 up hub                          # Start main VM
-.\tasks.ps1 ssh hub "git pull origin main"  # Update code
-.\tasks.ps1 provision hub                   # Re-run provisioning
-
-# Infrastructure management  
-.\tasks.ps1 up all                          # Start all VMs
-.\tasks.ps1 ssh all "sudo apt update"       # Update all systems
-.\tasks.ps1 halt all                        # Stop all VMs
-
-# Troubleshooting
-.\tasks.ps1 doctor                          # Full diagnostics
-.\tasks.ps1 status all                      # Check all VM states
-```
+- Add or update VM aliases only in `tasks-config.ps1`.
+- Keep recipe commands explicit (`vagrant ...`) for readability.
+- Treat recipe steps as atomic and order-dependent.
+- Prefer adding recipes over embedding conditional business logic in `tasks.ps1`.
+- Keep `tasks.ps1` generic: parse, validate, resolve, dispatch.
