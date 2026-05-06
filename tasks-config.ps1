@@ -29,6 +29,14 @@ $VM_CONFIGS = @{
         Path = "$PSScriptRoot\vms\base-server-01"; 
         Desc = "Base Server Template" 
     }
+    'openfang' = @{ 
+        Path = "$PSScriptRoot\vms\openfang-01"; 
+        Desc = "OpenFANG CTF Target" 
+    }
+    'myubuntubox' = @{ 
+        Path = "$PSScriptRoot\vms\my-ubuntu-box"; 
+        Desc = "Personal Ubuntu VM" 
+    }
 }
 
 # Recipes: Custom task sequences (The "Makefile" logic)
