@@ -30,7 +30,9 @@ fi
 
 # Model presence
 if command -v ollama > /dev/null 2>&1; then
-  if ollama list 2>/dev/null | grep -q "^${MODEL}"; then
+  if ollama list 2>/dev/null \
+    | awk '{print $1}' \
+    | grep -Fqx -- "${MODEL}"; then
     echo "  model    : ${MODEL} present"
   else
     echo "  model    : ${MODEL} NOT found"
