@@ -57,6 +57,20 @@ else {
     exit 1
 }
 
+# Validate imported configuration shape to prevent null-method errors.
+if (-not ($VM_CONFIGS -is [hashtable])) {
+    Write-Error "Invalid configuration: `$VM_CONFIGS is missing or not a hashtable in tasks-config.ps1"
+    exit 1
+}
+
+if ($null -eq $RECIPES) {
+    $RECIPES = @{}
+}
+elseif (-not ($RECIPES -is [hashtable])) {
+    Write-Error "Invalid configuration: `$RECIPES must be a hashtable when defined in tasks-config.ps1"
+    exit 1
+}
+
 # --- 2. TARGET RESOLUTION ---
 # Validates that the requested VM alias exists in your configuration.
 if (-not $VM_CONFIGS.ContainsKey($Target)) {
